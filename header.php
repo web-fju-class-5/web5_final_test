@@ -53,7 +53,7 @@ if (isset($_SESSION["account"])) {
             <a class="nav-link<?= nav_active('index.php') ?>" href="index.php">活動列表</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link<?= nav_active('activity.php') ?>" href="activity.php">報名去</a>
+            <a class="nav-link<?= nav_active('activity.php') ?>" href="activity.php">報名列表</a>
           <li class="nav-item">
             <a class="nav-link<?= nav_active('notify.php') ?>" href="notify.php">通知</a>
             <!--  
