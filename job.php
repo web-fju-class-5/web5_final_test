@@ -47,9 +47,9 @@ try {
     <div class="col-auto">
       <select name="order" aria-label="選擇排序欄位" class="form-select">
         <option selected value="">選擇排序欄位</option>
-        <option value="company" <?=($order=="company")?'selected':''?>>求才廠商</option>
-        <option value="content" <?=($order=="content")?'selected':''?>>求才內容</option>
-        <option value="pdate" <?=($order=="pdate")?'selected':''?>>刊登日期</option>
+        <option value="company" <?=($order=="company")?'selected':''?>>營隊</option>
+        <option value="content" <?=($order=="content")?'selected':''?>>內容</option>
+        <option value="pdate" <?=($order=="pdate")?'selected':''?>>日期</option>
 
       </select>
     </div>
@@ -75,8 +75,8 @@ try {
 <table class="table table-bordered table-striped" id="job_table">
  <thead>
    <tr>
-    <th>求才廠商</th>
-    <th>求才內容</th>
+    <th>營隊</th>
+    <th>內容</th>
     <th>日期</th>
     <th>編輯</th>
    </tr>

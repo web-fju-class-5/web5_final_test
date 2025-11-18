@@ -3,7 +3,7 @@
 include "header.php";
 
 // 1️⃣ 連接資料庫
-$servername = "localhost:3307";   
+$servername = "localhost";   
 $dbname = "practice";  
 $username = "root";         
 // $password = "41075925";              
