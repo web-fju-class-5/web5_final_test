@@ -2,10 +2,9 @@
 // header.php
 //抬頭選單
 
-
 // 開始 session，如果還沒開始
 if (session_status() === PHP_SESSION_NONE) {
-    session_start(); // ✅ 修改：確保 session 有啟動
+    session_start(); //
 }
 
 

@@ -38,7 +38,8 @@ try {
 ?>
 <div class="container position-relative">
 <?php if(!empty($_SESSION['role']) && strtoupper(trim($_SESSION['role'])) === 'M'): ?>
-  <a href="job_insert.php" class="btn btn-primary position-absolute" style="top: 1rem; right: 1rem;">+</a>
+  <br><br>
+  <a href="activity_insert.php" class="btn btn-primary position-absolute" style="top: 1rem; right: 1rem;">新增活動</a>
   <?php endif; ?>
 
 
@@ -75,10 +76,10 @@ try {
 <table class="table table-bordered table-striped" id="job_table">
  <thead>
    <tr>
-    <th>求才廠商</th>
-    <th>求才內容</th>
+    <th>主辦單位</th>
+    <th>活動內容</th>
     <th>日期</th>
-    <th>編輯</th>
+    <th>&nbsp;</th>
    </tr>
  </thead>
  <tbody>
@@ -90,8 +91,10 @@ try {
   <td><?=$row["pdate"]?></td>
   <td>
     <!-- 修改刪除按鈕 -->
-    <a href="job_update.php?postid=<?=$row["postid"]?>" class="btn btn-primary btn-sm">修改</a>
-    <a href="job_delete.php?postid=<?=$row["postid"]?>" class="btn btn-danger btn-sm">刪除</a>
+    <a href="activity_update.php?postid=<?=$row["postid"]?>" class="btn btn-primary btn-sm">修改</a>
+    <a href="activity_delete.php?postid=<?=$row["postid"]?>" class="btn btn-danger btn-sm">刪除</a>
+    <a href="activity_join.php?postid=<?=$row["postid"]?>" class="btn btn-primary btn-sm">報名</a>
+
   </td>
  </tr>
  <?php
