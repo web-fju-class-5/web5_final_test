@@ -20,3 +20,11 @@ event_tags 中間表,並使用GROUP BY
 ·分工:1人做後台(建立活動、貼標籤)、1
 人做前台(處理複雜的搜尋邏輯)、1人做會
 員與報名系統
+
+https://class-cue-pied.vercel.app/
+
+git clone https://github.com/web-fju-class-5/web5_final_test.git
+
+git config --global user.name "test"
+
+git config --global user.email test@test.com
