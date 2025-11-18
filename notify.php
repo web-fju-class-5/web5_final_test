@@ -1,5 +1,4 @@
 <?php
-// contact.php - 資管一日營
 include "header.php";
 
 // 權限檢查

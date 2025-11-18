@@ -39,28 +39,32 @@ if (isset($_SESSION["account"])) {
 
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
-      <a class="navbar-brand" href="#">高中生營隊活動系統</a>
+      <a class="navbar-brand" href="index.php">高中生營隊活動系統</a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto">
           <li class="nav-item">
+            <!--
             <a class="nav-link<?= nav_active('index.php') ?>" href="index.php">首頁</a>
           </li>
+-->
           <li class="nav-item">
-            <a class="nav-link<?= nav_active('about.php') ?>" href="about.php">活動列表</a>
+            <a class="nav-link<?= nav_active('index.php') ?>" href="index.php">活動列表</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link<?= nav_active('contact.php') ?>" href="contact.php">通知</a>
-            <!--  
+            <a class="nav-link<?= nav_active('activity.php') ?>" href="activity.php">報名去</a>
           <li class="nav-item">
-            <a class="nav-link<?= nav_active('contact.php') ?>" href="job.php">求才廠商</a>
+            <a class="nav-link<?= nav_active('notify.php') ?>" href="notify.php">通知</a>
+            <!--  
+          
           <li class="nav-item">
               -->
+          <!--
             <a class="nav-link<?= nav_active('personal.php') ?>" href="personal.php">個人資料</a>
           </li>
-          </li>
+          -->
           
           <li class="nav-item">
             <a class="nav-link" href="<?= $login_url ?>"><?= $login_text ?></a> <!-- ✅ 修改：登入/登出切換 -->

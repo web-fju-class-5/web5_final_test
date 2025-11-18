@@ -1,11 +1,21 @@
 <?php
-
-//job.php
-
-$title = "求才資訊列表";
-
+//首頁
 include "header.php";
 
+
+if ($postid) {
+    // 若有傳 postid，就用預備語句查單筆
+    $stmt = $conn->prepare("SELECT * FROM event WHERE postid = ?");
+    $stmt->bind_param("i", $postid);
+    $stmt->execute();
+    $result = $stmt->get_result();
+} else {
+    // 若沒傳 postid，查全部
+    $result = $conn->query("SELECT * FROM event");
+}
+
+?>
+<?
 try {
   require_once 'db.php';
   $order = $_POST["order"]??"";
