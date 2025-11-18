@@ -48,8 +48,8 @@ try {
     <div class="col-auto">
       <select name="order" aria-label="選擇排序欄位" class="form-select">
         <option selected value="">選擇排序欄位</option>
-        <option value="company" <?=($order=="company")?'selected':''?>>求才廠商</option>
-        <option value="content" <?=($order=="content")?'selected':''?>>求才內容</option>
+        <option value="company" <?=($order=="company")?'selected':''?>>主辦單位</option>
+        <option value="content" <?=($order=="content")?'selected':''?>>活動內容</option>
         <option value="pdate" <?=($order=="pdate")?'selected':''?>>刊登日期</option>
 
       </select>
@@ -78,7 +78,7 @@ try {
    <tr>
     <th>主辦單位</th>
     <th>活動內容</th>
-    <th>日期</th>
+    <th>刊登日期</th>
     <th>&nbsp;</th>
    </tr>
  </thead>
@@ -91,8 +91,8 @@ try {
   <td><?=$row["pdate"]?></td>
   <td>
     <!-- 修改刪除按鈕 -->
-    <a href="activity_update.php?postid=<?=$row["postid"]?>" class="btn btn-primary btn-sm">修改</a>
-    <a href="activity_delete.php?postid=<?=$row["postid"]?>" class="btn btn-danger btn-sm">刪除</a>
+    <a href="list_update.php?postid=<?=$row["postid"]?>" class="btn btn-primary btn-sm">修改</a>
+    <a href="list_delete.php?postid=<?=$row["postid"]?>" class="btn btn-danger btn-sm">刪除</a>
     <a href="activity_join.php?postid=<?=$row["postid"]?>" class="btn btn-primary btn-sm">報名</a>
 
   </td>

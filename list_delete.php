@@ -52,8 +52,8 @@ try {
   <table class="table table-bordered table-striped">
     <tr>
       <td>編號</td>
-      <td>求才廠商</td>
-      <td>求才內容</td>
+      <td>主辦單位</td>
+      <td>活動內容</td>
       <td>刊登日期</td>
     </tr>
     <tr>
