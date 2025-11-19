@@ -52,7 +52,7 @@ if (isset($_SESSION["account"])) {
             <a class="nav-link<?= nav_active('my_applications.php') ?>" href="my_applications.php">我的報名</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link<?= nav_active('contact.php') ?>" href="contact.php">通知</a>
+            <a class="nav-link<?= nav_active('my_notifications.php') ?>" href="my_notifications.php">通知</a>
             <!--  
           <li class="nav-item">
             <a class="nav-link<?= nav_active('contact.php') ?>" href="job.php">求才廠商</a>

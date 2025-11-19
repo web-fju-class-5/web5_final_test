@@ -1,18 +1,21 @@
 <?php
 // apply_success.php
-// 純顯示頁面：告知使用者報名成功，並顯示該活動的簡單資訊
+// --------------------------------------------------------
+// 純顯示頁面：
+// 顯示「報名成功」的綠色卡片，並列出剛剛報名的活動資訊。
+// --------------------------------------------------------
 
 session_start();
 $title = "報名成功";
 include "header.php";
 require_once 'db.php';
 
-// 獲取傳遞過來的 postid，用於查詢剛報名的活動名稱
+// 獲取活動 ID 以顯示活動名稱
 $postid = isset($_GET['postid']) ? intval($_GET['postid']) : 0;
 $job_info = [];
 
+// 查詢該活動的詳細資料
 if ($postid > 0) {
-    // 查詢活動的 公司名稱(company) 和 內容(content)
     $sql = "SELECT company, content FROM job WHERE postid = $postid";
     $result = mysqli_query($conn, $sql);
     if ($row = mysqli_fetch_assoc($result)) {
@@ -29,11 +32,10 @@ if ($postid > 0) {
         <div class="card-body py-5">
             <h5 class="card-title text-success mb-4">您的申請已成功送出</h5>
             
-            <!-- 如果有查到活動資訊，就顯示出來 -->
+            <!-- 如果有查到活動資料，顯示出來 -->
             <?php if (!empty($job_info)): ?>
                 <p class="card-text fs-5">
                     您報名的活動是：<br>
-                    <!-- htmlspecialchars 防止 XSS 攻擊 -->
                     <strong><?= htmlspecialchars($job_info['company']) ?></strong> - 
                     <span class="text-muted"><?= htmlspecialchars($job_info['content']) ?></span>
                 </p>
@@ -52,4 +54,6 @@ if ($postid > 0) {
     </div>
 </div>
 
-<?php include "footer.php"; // 引用頁尾 (如果有的話) ?>
+<?php 
+include "footer.php"; 
+?>

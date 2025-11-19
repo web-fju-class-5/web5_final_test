@@ -1,11 +1,14 @@
 <?php
 // my_applications.php
-// 顯示當前登入使用者所有報名過的活動列表
-// 功能包含：列表顯示、取消報名連結
+// --------------------------------------------------------
+// 使用者功能：
+// 顯示當前登入使用者所有報名過的活動列表 (查詢 applications 表)。
+// 提供「取消報名」按鈕。
+// --------------------------------------------------------
 
 session_start();
 
-// 檢查是否登入 (測試環境補上模擬資料，正式環境請導向登入)
+// 模擬登入 (測試用)
 if (!isset($_SESSION['account'])) {
     $_SESSION['account'] = 'user1';
     $_SESSION['name'] = '小明';
@@ -16,16 +19,11 @@ $title = "我的報名紀錄";
 include "header.php";
 require_once 'db.php';
 
-// 獲取當前使用者帳號
 $account = $_SESSION['account'];
 
 // 建構 SQL 查詢
-// 目標：顯示「這個人」報名了「哪些活動」
-// 技術：使用 JOIN 將 applications 表與 job 表連接
-// 1. FROM applications a (別名 a)
-// 2. JOIN job j (別名 j) ON a.job_id = j.postid
-// 3. WHERE a.user_account = 目前登入者
-// 4. ORDER BY 報名時間 倒序
+// 使用 JOIN 將 applications (報名表) 與 job (活動表) 連接
+// 目標：取得使用者報名了哪些活動的詳細資料
 $sql = "SELECT a.id AS app_id, a.applied_at, j.postid, j.company, j.content, j.pdate 
         FROM applications a 
         JOIN job j ON a.job_id = j.postid 
@@ -61,7 +59,7 @@ $result = mysqli_query($conn, $sql);
                     <?php
                     if ($result && mysqli_num_rows($result) > 0) {
                         while ($row = mysqli_fetch_assoc($result)) {
-                            // 格式化時間顯示，去除秒數
+                            // 格式化時間
                             $apply_time = date('Y-m-d H:i', strtotime($row['applied_at']));
                     ?>
                         <tr>
@@ -71,11 +69,10 @@ $result = mysqli_query($conn, $sql);
                             <td><?= htmlspecialchars($row['pdate']) ?></td>
                             <td class="text-center">
                                 <!-- 取消報名按鈕 -->
-                                <!-- 傳遞 application 的 id (app_id) 給後端，這是最準確的刪除方式 -->
-                                <!-- onclick: 彈出 JavaScript 確認視窗 -->
+                                <!-- 傳遞的是報名紀錄 ID (app_id)，而非活動 ID -->
                                 <a href="cancel_application.php?id=<?= $row['app_id'] ?>" 
                                    class="btn btn-outline-danger btn-sm"
-                                   onclick="return confirm('確定要取消 「<?= htmlspecialchars($row['company']) ?>」 的報名嗎？此動作無法復原。');">
+                                   onclick="return confirm('確定要取消「<?= htmlspecialchars($row['company']) ?>」的報名嗎？');">
                                    取消報名
                                 </a>
                             </td>
@@ -96,8 +93,7 @@ $result = mysqli_query($conn, $sql);
     </div>
 </div>
 
-<?php
-mysqli_close($conn);
-// include "footer.php";
+<?php mysqli_close($conn); ?>
+<?php 
+include "footer.php"; 
 ?>
-<?php include "footer.php"; // 引用頁尾 (如果有的話) ?>
