@@ -254,3 +254,4 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
 </div>
 
 <?php mysqli_close($conn); ?>
+<?php include "footer.php"; // 引用頁尾 (如果有的話) ?>

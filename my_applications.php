@@ -100,3 +100,4 @@ $result = mysqli_query($conn, $sql);
 mysqli_close($conn);
 // include "footer.php";
 ?>
+<?php include "footer.php"; // 引用頁尾 (如果有的話) ?>
