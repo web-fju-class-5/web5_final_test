@@ -1,144 +1,144 @@
 <?php
 // index.php
-// 這是求才資訊列表頁面，加入了多重標籤 (Tag) 篩選功能。
-// 篩選邏輯採用 "OR"：只要職缺符合任一被勾選的標籤，就會被選出。
+// 這是系統的首頁，功能包含：
+// 1. 顯示所有職缺/活動列表
+// 2. 提供關鍵字、日期搜尋
+// 3. 提供「多重標籤」篩選 (使用 OR 邏輯)
+// 4. 提供「報名」按鈕
 
-// 啟動 Session，通常用於管理員登入狀態判斷
+// 啟動 Session，必須在所有 HTML 輸出之前執行
 session_start();
 
-// 設定頁面標題
-$title = "求才資訊 (多重標籤篩選)";
+// --- [測試用] 模擬自動登入 ---
+// 在正式環境中，這段應該被移除，改為製作獨立的 login.php
+// 這裡預設使用者為 'user1'，角色為 'S' (學生)
+if (!isset($_SESSION['account'])) {
+    $_SESSION['account'] = 'user1'; 
+    $_SESSION['role'] = 'S';       
+    $_SESSION['name'] = '小明';
+}
+// ---------------------------
 
-// 引入頁首檔案，通常包含 HTML 的 <head> 和導覽列 (Navbar)
+// 設定頁面標題，header.php 會用到
+$title = "求才資訊 (多重標籤篩選)";
 include "header.php";
 
-// --- 1. 資料庫連接與標籤資料載入 ---
-
-// 引入資料庫連接檔案 (db.php 應連接到 'practice' 資料庫)
+// 1. 資料庫連接
 try {
     require_once 'db.php'; 
 } catch (Exception $e) {
-    // 若連接失敗，顯示錯誤並終止腳本
+    // 如果連接失敗，顯示錯誤訊息並停止
     echo "<div class='container alert alert-danger'>資料庫連接失敗: " . $e->getMessage() . "</div>";
     exit;
 }
 
-// 從資料庫獲取所有標籤，用於在表單中顯示多選框
+// 2. 載入所有標籤 (Tags) 用於前端顯示
+// 我們將標籤依照 'type' (例如：技能、經驗要求) 分組
 $tags_by_type = [];
 try {
-    // 查詢 tags 資料表，按類型和名稱排序
     $tags_sql = "SELECT id, name, type FROM tags ORDER BY type, name";
     $tags_result = mysqli_query($conn, $tags_sql);
-
-    // 將結果依照 'type' (例如：技能、經驗要求) 分組存入陣列
-    while ($tag_row = mysqli_fetch_assoc($tags_result)) {
-        $tags_by_type[$tag_row['type']][] = $tag_row;
+    
+    if ($tags_result) {
+        while ($tag_row = mysqli_fetch_assoc($tags_result)) {
+            // 將查詢結果存入二維陣列：$tags_by_type['技能'][0] = ...
+            $tags_by_type[$tag_row['type']][] = $tag_row;
+        }
     }
 } catch (Exception $e) {
-    // 如果查詢 tags 失敗 (例如 tags 表尚未建立)，忽略錯誤，確保頁面仍能載入
+    // 如果 tags 資料表不存在或查詢錯誤，暫時忽略，不影響主功能
 }
 
-
-// --- 2. 處理表單提交的搜尋條件 ---
-
-// 獲取使用者勾選的所有標籤 ID
+// 3. 接收並處理前端傳來的搜尋參數 (POST)
+// 使用 ?? 運算子：如果 $_POST['tags'] 不存在，則預設為空陣列 []
 $selected_tags = $_POST['tags'] ?? [];
-$selected_tags_count = count($selected_tags);
+$selected_tags_count = count($selected_tags); // 計算勾選了幾個標籤
 
-// 獲取排序欄位，若無則為空字串
-$order = $_POST["order"] ?? "";
-
-// 獲取關鍵字，並使用 mysqli_real_escape_string 防止 SQL 注入
-$search_txt = mysqli_real_escape_string($conn, $_POST["searchtxt"] ?? "");
-
-// 獲取日期區間
+$order = $_POST["order"] ?? ""; // 排序欄位
+// mysqli_real_escape_string 用於處理特殊字元，防止 SQL Injection 攻擊
+$search_txt = mysqli_real_escape_string($conn, $_POST["searchtxt"] ?? ""); 
 $date_start = $_POST["date_start"] ?? "";
 $date_end = $_POST["date_end"] ?? "";
 
-// 檢查日期區間是否相反，若相反則自動交換，避免 SQL 錯誤
+// 邏輯檢查：如果起始日期大於結束日期，自動交換兩者
 if ($date_start && $date_end && $date_start > $date_end) {
     [$date_start, $date_end] = [$date_end, $date_start];
 }
 
-
-// --- 3. 建立動態 SQL 查詢語句 ---
-
-// 選擇欄位：j.* 是 'job' 表格的別名
+// 4. 建構 SQL 查詢語句 (核心邏輯)
+// 基礎 SELECT
 $sql_select = "SELECT j.postid, j.company, j.content, j.pdate";
-$sql_from = " FROM job j "; // 設定主表 job，別名為 j
+$sql_from = " FROM job j "; // 主表 job，別名 j
 $sql_join = "";
 $sql_group_by = "";
+$where_conditions = []; // 用來存放所有的 WHERE 子句
 
-// $where_conditions 陣列用來存放所有 WHERE 條件 (關鍵字、日期、標籤)
-$where_conditions = [];
-
-// ** 處理多標籤篩選 (OR 邏輯) **
+// --- 處理多標籤篩選 (OR 邏輯) ---
 if ($selected_tags_count > 0) {
-    // 1. JOIN：需要連接 job_tags 中間表
+    // 如果有勾選標籤，必須 JOIN job_tags 中間表
     $sql_join = " JOIN job_tags jt ON j.postid = jt.job_id ";
     
-    // 2. WHERE IN：建立 IN 語句，找出 job_tags 中包含任一被勾選 tag_id 的職缺
-    // implode(','...) 將陣列 [1, 5, 8] 轉為字串 "1,5,8"
+    // 製作 IN 子句，例如：jt.tag_id IN (1, 3, 5)
+    // array_map('intval') 確保所有值都是整數，安全性處理
     $in_clause = implode(',', array_map('intval', $selected_tags));
     $where_conditions[] = " jt.tag_id IN ($in_clause) ";
-
-    // 3. GROUP BY：將結果依照 job.postid 分組
-    // 這是為了去除重複 (因為一個職缺如果符合多個標籤，JOIN 會產生多列)
-    $sql_group_by = " GROUP BY j.postid ";
     
-    // ** 這裡不需要 HAVING 子句，因為是 OR 邏輯 **
+    // 因為一個職缺可能符合多個標籤，JOIN 後會出現多筆重複資料
+    // 使用 GROUP BY j.postid 來將重複的職缺合併為一筆
+    $sql_group_by = " GROUP BY j.postid ";
 }
 
-// 處理關鍵字搜尋 (包含公司名稱 company 或職缺內容 content)
+// --- 處理關鍵字搜尋 ---
 if ($search_txt) {
+    // 搜尋公司名稱 OR 內容
     $where_conditions[] = " (j.company LIKE '%$search_txt%' OR j.content LIKE '%$search_txt%') ";
 }
-
-// 處理日期起始條件
+// --- 處理日期區間 ---
 if ($date_start) {
     $where_conditions[] = " j.pdate >= '$date_start' ";
 }
-
-// 處理日期結束條件
 if ($date_end) {
     $where_conditions[] = " j.pdate <= '$date_end' ";
 }
 
-// 組合 WHERE 子句：將所有條件用 " AND " 串聯起來
+// 組合 WHERE 子句
 $sql_where = "";
 if (count($where_conditions) > 0) {
+    // 用 AND 連接所有條件：(標籤符合) AND (關鍵字符合) AND (日期符合)
     $sql_where = " WHERE " . implode(' AND ', $where_conditions);
 }
 
-// 組合最終的 SQL 查詢字串
+// 組合最終 SQL
 $sql = $sql_select . $sql_from . $sql_join . $sql_where . $sql_group_by;
 
-// 處理排序
+// --- 處理排序 ---
+// 只有在允許的欄位清單中才進行排序，防止 SQL 錯誤
 if ($order && in_array($order, ['company', 'content', 'pdate'])) {
-    // 確保排序欄位有效
     $sql .= " ORDER BY j.$order ";
 } else {
-    // 預設依照日期降冪排序 (最新在前)
+    // 預設：依照日期降冪 (新的在前)
     $sql .= " ORDER BY j.pdate DESC ";
 }
 ?>
 
-<!-- --- 4. 網頁 HTML 結構與表單顯示 --- -->
 <div class="container mt-4">
     
-    <!-- 判斷是否有管理員/老師權限，顯示新增職缺按鈕 -->
+    <!-- 顯示歡迎訊息 (來自 Session) -->
+    <div class="alert alert-info py-2">
+        你好，<strong><?= htmlspecialchars($_SESSION['name']) ?></strong> (<?= htmlspecialchars($_SESSION['account']) ?>)
+    </div>
+
+    <!-- 管理員/老師專屬功能：新增職缺按鈕 -->
     <?php if(!empty($_SESSION['role']) && (strtoupper(trim($_SESSION['role'])) === 'M' || strtoupper(trim($_SESSION['role'])) === 'T')): ?>
         <a href="job_insert.php" class="btn btn-primary position-absolute" style="top: 5.5rem; right: 2rem; z-index: 10;">新增職缺</a>
     <?php endif; ?>
 
-    <!-- 搜尋表單 (POST 方式提交到本頁面 index.php) -->
+    <!-- 搜尋表單開始 -->
     <form method="POST" action="index.php" class="card card-body bg-light mb-4">
-        
-        <!-- 一般搜尋條件區塊 -->
+        <!-- 上半部：關鍵字、日期、排序 -->
         <div class="row g-3 mb-3">
             <div class="col-md-3">
                 <label class="form-label">關鍵字搜尋</label>
-                <!-- 顯示上次輸入的值 -->
                 <input placeholder="廠商或內容" value="<?=htmlspecialchars($search_txt)?>" type="text" name="searchtxt" class="form-control">
             </div>
             <div class="col-md-2">
@@ -163,77 +163,59 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
             </div>
         </div>
 
-        <!-- 多標籤篩選區塊 -->
+        <!-- 下半部：標籤篩選區 -->
         <hr>
         <label class="form-label fw-bold text-primary">標籤篩選 (勾選任一條件即可 / OR 邏輯)</label>
         <div class="row g-3">
-            <?php
-            // 檢查是否有標籤資料
-            if (empty($tags_by_type)) :
-                echo '<div class="col-12 text-muted">目前資料庫中沒有設定標籤 (Tags)。請先執行 practice_complete.sql。</div>';
-            else :
-                // 遍歷所有標籤類型 (例如 '技能', '經驗要求')
-                foreach ($tags_by_type as $type => $tags) :
-            ?>
+            <?php if (empty($tags_by_type)) : ?>
+                <div class="col-12 text-muted">目前資料庫中沒有設定標籤。</div>
+            <?php else : ?>
+                <!-- 迴圈輸出標籤類型 -->
+                <?php foreach ($tags_by_type as $type => $tags) : ?>
                     <div class="col-md-4">
                         <h5><?= htmlspecialchars($type) ?></h5>
                         <div class="border rounded p-2 bg-white" style="max-height: 150px; overflow-y: auto;">
-                            <?php
-                            // 遍歷該類型下的所有標籤
-                            foreach ($tags as $tag) :
-                                // 檢查該標籤是否在上次提交時被勾選
+                            <!-- 迴圈輸出該類型下的每個標籤 -->
+                            <?php foreach ($tags as $tag) : 
+                                // 檢查此標籤是否在上次提交時被勾選 (保持勾選狀態)
                                 $is_checked = in_array($tag['id'], $selected_tags);
                             ?>
                                 <div class="form-check">
-                                    <input class="form-check-input" 
-                                           type="checkbox" 
-                                           name="tags[]" // 必須使用陣列名稱，才能傳送多個勾選值
-                                           value="<?= $tag['id'] ?>" 
-                                           id="tag_<?= $tag['id'] ?>"
-                                           <?= $is_checked ? 'checked' : '' ?> // 如果被勾選，則加上 checked 屬性
-                                    >
-                                    <label class="form-check-label" for="tag_<?= $tag['id'] ?>">
-                                        <?= htmlspecialchars($tag['name']) ?>
-                                    </label>
+                                    <!-- name="tags[]" 表示這是一個陣列，可以傳送多個值 -->
+                                    <input class="form-check-input" type="checkbox" name="tags[]" value="<?= $tag['id'] ?>" id="tag_<?= $tag['id'] ?>" <?= $is_checked ? 'checked' : '' ?>>
+                                    <label class="form-check-label" for="tag_<?= $tag['id'] ?>"><?= htmlspecialchars($tag['name']) ?></label>
                                 </div>
                             <?php endforeach; ?>
                         </div>
                     </div>
-            <?php
-                endforeach; 
-            endif;
-            ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </div>
     </form>
 
 
-    <!-- --- 5. 搜尋結果顯示 --- -->
+    <!-- 搜尋結果顯示區 -->
     <div class="card">
-        <div class="card-header">
-            搜尋結果
-        </div>
+        <div class="card-header">搜尋結果</div>
         <div class="table-responsive">
             <table class="table table-bordered table-striped table-hover mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th style="width: 25%;">求才廠商</th>
-                        <th style="width: 45%;">求才內容</th>
-                        <th style="width: 15%;">日期</th>
-                        <th style="width: 15%;">編輯</th>
+                        <th>求才廠商</th>
+                        <th>求才內容</th>
+                        <th>日期</th>
+                        <th>編輯 / 報名</th> 
                     </tr>
                 </thead>
                 <tbody>
                     <?php
                     try {
-                        // 執行最終組裝好的 SQL 查詢
+                        // 執行 SQL 查詢
                         $result = mysqli_query($conn, $sql);
-
-                        // 檢查查詢是否成功
-                        if (!$result) throw new Exception(mysqli_error($conn));
-
-                        // 判斷是否有資料
-                        if (mysqli_num_rows($result) > 0) {
-                            // 遍歷所有查詢結果並顯示
+                        
+                        // 檢查是否有資料
+                        if ($result && mysqli_num_rows($result) > 0) {
+                            // 迴圈取每一筆資料
                             while ($row = mysqli_fetch_assoc($result)) {
                     ?>
                                 <tr>
@@ -241,20 +223,28 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
                                     <td><?= htmlspecialchars($row["content"]) ?></td>
                                     <td><?= htmlspecialchars($row["pdate"]) ?></td>
                                     <td>
-                                        <!-- 提供修改和刪除的連結，帶上 postid 作為參數 -->
+                                        <!-- 修改與刪除按鈕 (原功能) -->
                                         <a href="job_update.php?postid=<?= $row["postid"] ?>" class="btn btn-primary btn-sm">修改</a>
                                         <a href="job_delete.php?postid=<?= $row["postid"] ?>" class="btn btn-danger btn-sm">刪除</a>
+                                        
+                                        <!-- 新增：報名按鈕 -->
+                                        <!-- 1. 連結指向 apply.php -->
+                                        <!-- 2. 透過 GET 參數傳遞 postid -->
+                                        <!-- 3. onclick 事件增加確認視窗，避免誤按 -->
+                                        <a href="apply.php?postid=<?= $row["postid"] ?>" 
+                                           class="btn btn-success btn-sm ms-2"
+                                           onclick="return confirm('確定要報名 <?= htmlspecialchars($row['company']) ?> 的活動嗎？');">
+                                           報名
+                                        </a>
                                     </td>
                                 </tr>
                             <?php
                             }
                         } else {
-                            // 沒有找到符合條件的資料
-                            echo '<tr><td colspan="4" class="text-center">沒有找到符合條件的職缺。</td></tr>';
+                            echo '<tr><td colspan="4" class="text-center">沒有資料。</td></tr>';
                         }
                     } catch (Exception $e) {
-                        // 顯示執行查詢時發生的錯誤，方便除錯
-                        echo '<tr><td colspan="4" class="text-center text-danger">查詢時發生錯誤: ' . $e->getMessage() . '</td></tr>';
+                        echo '<tr><td colspan="4" class="text-center text-danger">錯誤: ' . $e->getMessage() . '</td></tr>';
                     }
                     ?>
                 </tbody>
@@ -263,9 +253,4 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
     </div>
 </div>
 
-<?php 
-// 關閉資料庫連接
-mysqli_close($conn); 
-// 引入頁尾檔案 (假設有 footer.php)
-// include "footer.php"; 
-?>
+<?php mysqli_close($conn); ?>
