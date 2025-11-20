@@ -11,22 +11,14 @@
 // 1. 啟動 Session (必須在所有 HTML 輸出之前)
 session_start();
 
-// --- [測試用] 模擬自動登入 ---
-// 在正式環境中，這段應該被移除，改為製作獨立的 login.php
-// 這裡預設使用者為 'user1'，角色為 'S' (學生)
-if (!isset($_SESSION['account'])) {
-    $_SESSION['account'] = 'user1'; 
-    $_SESSION['role'] = 'S';       
-    $_SESSION['name'] = '小明';
-}
-// ---------------------------
+
 
 $title = "活動搜尋";
 include "header.php"; // 引入頁首
 
 // 2. 連接資料庫
 try {
-    require_once 'db.php'; 
+    require_once 'db.php';
 } catch (Exception $e) {
     echo "<div class='container alert alert-danger'>資料庫連接失敗: " . $e->getMessage() . "</div>";
     exit;
@@ -38,7 +30,7 @@ try {
     // SQL: 選取 id, name, type 並依照類型排序
     $tags_sql = "SELECT id, name, type FROM tags ORDER BY type, name";
     $tags_result = mysqli_query($conn, $tags_sql);
-    
+
     if ($tags_result) {
         // 將結果整理成陣列，結構：$tags_by_type['技能類'] = [標籤1, 標籤2...]
         while ($tag_row = mysqli_fetch_assoc($tags_result)) {
@@ -52,11 +44,11 @@ try {
 // 4. 接收並處理前端傳來的搜尋參數 (POST)
 // 使用 ?? 運算子防止未定義錯誤
 $selected_tags = $_POST['tags'] ?? []; // 使用者勾選的標籤陣列
-$selected_tags_count = count($selected_tags); 
+$selected_tags_count = count($selected_tags);
 
 $order = $_POST["order"] ?? ""; // 排序依據
 // 防止 SQL Injection: 使用 mysqli_real_escape_string 處理文字輸入
-$search_txt = mysqli_real_escape_string($conn, $_POST["searchtxt"] ?? ""); 
+$search_txt = mysqli_real_escape_string($conn, $_POST["searchtxt"] ?? "");
 $date_start = $_POST["date_start"] ?? "";
 $date_end = $_POST["date_end"] ?? "";
 
@@ -76,11 +68,11 @@ $where_conditions = []; // 存放所有 WHERE 條件
 if ($selected_tags_count > 0) {
     // 若有勾選標籤，需 JOIN job_tags 表
     $sql_join = " JOIN job_tags jt ON j.postid = jt.job_id ";
-    
+
     // 製作 IN 子句，例如: jt.tag_id IN (1, 3, 5)
     $in_clause = implode(',', array_map('intval', $selected_tags));
     $where_conditions[] = " jt.tag_id IN ($in_clause) ";
-    
+
     // 為了避免同一職缺因符合多個標籤而重複出現，需使用 GROUP BY
     $sql_group_by = " GROUP BY j.postid ";
 }
@@ -117,15 +109,16 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
 ?>
 
 <div class="container mt-4">
-    
+
     <!-- 歡迎訊息 -->
     <div class="alert alert-info py-2">
         你好，<strong><?= htmlspecialchars($_SESSION['name']) ?></strong>
     </div>
 
     <!-- 管理員按鈕：新增職缺 (權限檢查) -->
-    <?php if(!empty($_SESSION['role']) && (strtoupper(trim($_SESSION['role'])) === 'M' || strtoupper(trim($_SESSION['role'])) === 'T')): ?>
-        <a href="job_insert.php" class="btn btn-primary position-absolute" style="top: 5.5rem; right: 2rem; z-index: 10;">新增職缺</a>
+    <?php if (!empty($_SESSION['role']) && (strtoupper(trim($_SESSION['role'])) === 'M' || strtoupper(trim($_SESSION['role'])) === 'T')): ?>
+        <a href="job_insert.php" class="btn btn-primary position-absolute"
+            style="top: 5.5rem; right: 2rem; z-index: 10;">新增職缺</a>
     <?php endif; ?>
 
     <!-- 搜尋表單 -->
@@ -134,23 +127,24 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
         <div class="row g-3 mb-3">
             <div class="col-md-3">
                 <label class="form-label">關鍵字搜尋</label>
-                <input placeholder="廠商或內容" value="<?=htmlspecialchars($search_txt)?>" type="text" name="searchtxt" class="form-control">
+                <input placeholder="廠商或內容" value="<?= htmlspecialchars($search_txt) ?>" type="text" name="searchtxt"
+                    class="form-control">
             </div>
             <div class="col-md-2">
                 <label class="form-label">日期 (起)</label>
-                <input type="date" name="date_start" class="form-control" value="<?=htmlspecialchars($date_start)?>">
+                <input type="date" name="date_start" class="form-control" value="<?= htmlspecialchars($date_start) ?>">
             </div>
             <div class="col-md-2">
                 <label class="form-label">日期 (迄)</label>
-                <input type="date" name="date_end" class="form-control" value="<?=htmlspecialchars($date_end)?>">
+                <input type="date" name="date_end" class="form-control" value="<?= htmlspecialchars($date_end) ?>">
             </div>
             <div class="col-md-3">
                 <label class="form-label">排序方式</label>
                 <select name="order" class="form-select">
-                    <option value="" <?=($order=="")?'selected':''?>>預設 (日期最新)</option>
-                    <option value="company" <?=($order=="company")?'selected':''?>>廠商</option>
-                    <option value="content" <?=($order=="content")?'selected':''?>>內容</option>
-                    <option value="pdate" <?=($order=="pdate")?'selected':''?>>日期</option>
+                    <option value="" <?= ($order == "") ? 'selected' : '' ?>>預設 (日期最新)</option>
+                    <option value="company" <?= ($order == "company") ? 'selected' : '' ?>>廠商</option>
+                    <option value="content" <?= ($order == "content") ? 'selected' : '' ?>>內容</option>
+                    <option value="pdate" <?= ($order == "pdate") ? 'selected' : '' ?>>日期</option>
                 </select>
             </div>
             <div class="col-md-2 d-flex align-items-end">
@@ -162,20 +156,22 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
         <hr>
         <label class="form-label fw-bold text-primary">標籤篩選 (勾選任一條件即可)</label>
         <div class="row g-3">
-            <?php if (empty($tags_by_type)) : ?>
+            <?php if (empty($tags_by_type)): ?>
                 <div class="col-12 text-muted">目前無可用標籤。</div>
-            <?php else : ?>
-                <?php foreach ($tags_by_type as $type => $tags) : ?>
+            <?php else: ?>
+                <?php foreach ($tags_by_type as $type => $tags): ?>
                     <div class="col-md-4">
                         <h5><?= htmlspecialchars($type) ?></h5>
                         <div class="border rounded p-2 bg-white" style="max-height: 150px; overflow-y: auto;">
-                            <?php foreach ($tags as $tag) : 
+                            <?php foreach ($tags as $tag):
                                 // 檢查是否已勾選 (保留狀態)
                                 $is_checked = in_array($tag['id'], $selected_tags);
-                            ?>
+                                ?>
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="tags[]" value="<?= $tag['id'] ?>" id="tag_<?= $tag['id'] ?>" <?= $is_checked ? 'checked' : '' ?>>
-                                    <label class="form-check-label" for="tag_<?= $tag['id'] ?>"><?= htmlspecialchars($tag['name']) ?></label>
+                                    <input class="form-check-input" type="checkbox" name="tags[]" value="<?= $tag['id'] ?>"
+                                        id="tag_<?= $tag['id'] ?>" <?= $is_checked ? 'checked' : '' ?>>
+                                    <label class="form-check-label"
+                                        for="tag_<?= $tag['id'] ?>"><?= htmlspecialchars($tag['name']) ?></label>
                                 </div>
                             <?php endforeach; ?>
                         </div>
@@ -195,7 +191,7 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
                         <th>主辦單位/廠商</th>
                         <th>活動內容</th>
                         <th>日期</th>
-                        <th>功能</th> 
+                        <th>功能</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -203,10 +199,10 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
                     try {
                         // 執行 SQL
                         $result = mysqli_query($conn, $sql);
-                        
+
                         if ($result && mysqli_num_rows($result) > 0) {
                             while ($row = mysqli_fetch_assoc($result)) {
-                    ?>
+                                ?>
                                 <tr>
                                     <td><?= htmlspecialchars($row["company"]) ?></td>
                                     <td><?= htmlspecialchars($row["content"]) ?></td>
@@ -215,16 +211,15 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
                                         <!-- 原有的修改/刪除按鈕 -->
                                         <a href="job_update.php?postid=<?= $row["postid"] ?>" class="btn btn-primary btn-sm">修改</a>
                                         <a href="job_delete.php?postid=<?= $row["postid"] ?>" class="btn btn-danger btn-sm">刪除</a>
-                                        
+
                                         <!-- 報名按鈕：導向 apply.php -->
-                                        <a href="apply.php?postid=<?= $row["postid"] ?>" 
-                                           class="btn btn-success btn-sm ms-2"
-                                           onclick="return confirm('確定要報名 <?= htmlspecialchars($row['company']) ?> 的活動嗎？');">
-                                           報名
+                                        <a href="apply.php?postid=<?= $row["postid"] ?>" class="btn btn-success btn-sm ms-2"
+                                            onclick="return confirm('確定要報名 <?= htmlspecialchars($row['company']) ?> 的活動嗎？');">
+                                            報名
                                         </a>
                                     </td>
                                 </tr>
-                            <?php
+                                <?php
                             }
                         } else {
                             echo '<tr><td colspan="4" class="text-center">沒有符合的資料。</td></tr>';
@@ -240,6 +235,6 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
 </div>
 
 <?php mysqli_close($conn); ?>
-<?php 
-include "footer.php"; 
+<?php
+include "footer.php";
 ?>
