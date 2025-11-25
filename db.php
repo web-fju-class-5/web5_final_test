@@ -6,7 +6,7 @@
 // --------------------------------------------------------
 
 // 資料庫主機，XAMPP 預設為 localhost
-$servername = "localhost"; 
+$servername = "localhost:3307"; 
 
 // 資料庫使用者名稱，XAMPP 預設為 root
 $username = "root";        
