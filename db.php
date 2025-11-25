@@ -3,7 +3,7 @@
 // XAMPP 的資料庫連接設定
 // 連接到您 'practice (3).sql' 檔案中指定的資料庫 'practice'
 
-$servername = "localhost"; // XAMPP 預設是 localhost
+$servername = "localhost:3307"; // XAMPP 預設是 localhost
 $username = "root";        // XAMPP 預設是 root
 $password = "";            // XAMPP 預設密碼為空
 $dbname = "practice";      // 這是您 .sql 檔案中指定的資料庫名稱
