@@ -189,7 +189,7 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
                 <thead class="table-light">
                     <tr>
                         <th>主辦單位/廠商</th>
-                        <th>活動內容</th>
+                        <th>活動名稱</th>
                         <th>日期</th>
                         <th>功能</th>
                     </tr>

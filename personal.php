@@ -8,7 +8,7 @@ if (empty($_SESSION['account'])) {
     exit;
 }
 
-$servername = "localhost";
+$servername = "localhost:3307";
 $dbname = "practice";
 $username = "root";
 $conn = new mysqli($servername, $username, "", $dbname);

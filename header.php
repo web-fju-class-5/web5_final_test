@@ -53,15 +53,10 @@ if (isset($_SESSION["account"])) {
           </li>
           <li class="nav-item">
             <a class="nav-link<?= nav_active('my_notifications.php') ?>" href="my_notifications.php">通知</a>
-            <!--  
+          </li>
           <li class="nav-item">
-            <a class="nav-link<?= nav_active('contact.php') ?>" href="job.php">求才廠商</a>
-          <li class="nav-item">
-              -->
             <a class="nav-link<?= nav_active('personal.php') ?>" href="personal.php">個人資料</a>
-          </li>
-          </li>
-          
+          </li>          
           <li class="nav-item">
             <a class="nav-link" href="<?= $login_url ?>"><?= $login_text ?></a> <!-- ✅ 修改：登入/登出切換 -->
           </li>

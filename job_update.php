@@ -32,7 +32,7 @@ if ($_POST) {
         if (mysqli_stmt_execute($stmt)) {
             mysqli_stmt_close($stmt);
             mysqli_close($conn);
-            header("Location: job.php");
+            header("Location: index.php");
             exit;
         } else {
             $msg = "<div class='alert alert-danger'>更新失敗</div>";
@@ -63,14 +63,14 @@ mysqli_close($conn);
   <input type="hidden" name="postid" value="<?=$postid?>">
 
   <div class="mb-3 row">
-    <label for="_company" class="col-sm-2 col-form-label">求才廠商</label>
+    <label for="_company" class="col-sm-2 col-form-label">主辦單位</label>
     <div class="col-sm-10">
       <input type="text" class="form-control" name="company" id="_company" 
              placeholder="公司名稱" value="<?=htmlspecialchars($company)?>" required>
     </div>
   </div>
   <div class="mb-3">
-    <label for="_content" class="form-label">求才內容</label>
+    <label for="_content" class="form-label">活動內容</label>
     <textarea class="form-control" name="content" id="_content" rows="10" required><?=htmlspecialchars($content)?></textarea>
   </div>
   <input class="btn btn-primary" type="submit" value="送出">
