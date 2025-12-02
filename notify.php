@@ -1,156 +1,134 @@
 <?php
-// notify.php
-// --------------------------------------------------------
-// 管理員專屬頁面：
-// 功能：選擇一個活動，向所有報名該活動的使用者發送站內通知。
-// 邏輯：
-// 1. 檢查權限 (非管理員禁止訪問)
-// 2. 列出有報名紀錄的活動
-// 3. 將通知訊息寫入 notifications 表
-// --------------------------------------------------------
-
+// notify.php - FINAL VERSION
+// Feature: Sends internal DB notification AND real Email using PHPMailer
 session_start();
-$title = "發送站內通知";
-include "header.php";
-require_once 'db.php';
 
-// --- 1. 嚴格的權限檢查 ---
-// 只有角色為 'M' (Manager) 或 'T' (Teacher) 才能執行
+// Load Composer packages
+require __DIR__ . '/vendor/autoload.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+use Dotenv\Dotenv;
+
+// Load .env variables
+if (file_exists(__DIR__ . '/.env')) {
+    $dotenv = Dotenv::createImmutable(__DIR__);
+    $dotenv->safeLoad();
+}
+
+$title = "發送站內通知與信件";
+include "header.php";
+require_once 'db.php'; // Uses your Port 3307 connection
+
+// --- Permission Check ---
 $is_admin = false;
 if (!empty($_SESSION['role']) && (strtoupper(trim($_SESSION['role'])) === 'M' || strtoupper(trim($_SESSION['role'])) === 'T')) {
     $is_admin = true;
 }
 
-// 如果權限不足，顯示錯誤畫面並停止程式
 if (!$is_admin) {
-    ?>
-    <div class="container mt-5">
-        <div class="alert alert-danger shadow text-center p-5">
-            <h2 class="display-1"><i class="bi bi-lock-fill"></i></h2>
-            <h3 class="mt-3">權限不足 (Access Denied)</h3>
-            <p class="lead">抱歉，只有<strong>管理員</strong>可以訪問此頁面並發送通知。</p>
-            <hr>
-            <a href="my_notifications.php" class="btn btn-primary">回到我的訊息</a>
-            <a href="index.php" class="btn btn-outline-secondary">回到首頁</a>
-        </div>
-    </div>
-    <?php
-    include "footer.php"; // 確保頁尾正常顯示 (如果有)
-    exit; // 重要：務必終止程式，防止表單被顯示
+    die("<div class='container mt-5 alert alert-danger'>Access Denied: 只有管理員可以訪問此頁面。</div>");
 }
 
-// --- 以下為管理員可見內容 ---
-
-// 2. 獲取活動列表 (用於表單下拉選單)
-// SQL: 找出「有人報名」的活動 (使用 DISTINCT 去重)
+// --- Logic ---
 $events_sql = "SELECT DISTINCT j.postid, j.company, j.content 
                FROM job j 
                JOIN applications a ON j.postid = a.job_id 
                ORDER BY j.postid DESC";
 $events_result = mysqli_query($conn, $events_sql);
+$msg = "";
 
-$msg = ""; // 儲存結果訊息
-
-// 3. 處理表單提交 (發送通知)
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $target_job_id = intval($_POST['target_job_id']); // 目標活動 ID
-    $subject = mysqli_real_escape_string($conn, $_POST['subject']); // 標題
-    $message_body = mysqli_real_escape_string($conn, $_POST['message']); // 內容
+    $target_job_id = intval($_POST['target_job_id']);
+    $subject = mysqli_real_escape_string($conn, $_POST['subject']);
+    $message_body = mysqli_real_escape_string($conn, $_POST['message']);
 
-    // 檢查必填欄位
     if ($target_job_id > 0 && !empty($subject) && !empty($message_body)) {
         
-        // 步驟 A: 找出該活動的所有報名者帳號
-        $recipients_sql = "SELECT user_account FROM applications WHERE job_id = $target_job_id";
+        // Find users who applied + their emails
+        $recipients_sql = "SELECT a.user_account, u.email 
+                           FROM applications a 
+                           JOIN user u ON a.user_account = u.account 
+                           WHERE a.job_id = $target_job_id";
         $recipients_result = mysqli_query($conn, $recipients_sql);
         
-        $count = 0; // 成功發送計數器
+        $count = 0;
+        $email_count = 0;
         
-        // 步驟 B: 遍歷每一位報名者，寫入通知
+        // Setup PHPMailer
+        $mail = new PHPMailer(true);
+        try {
+            $mail->isSMTP();
+            $mail->Host       = $_ENV['SMTP_HOST'] ?? 'smtp.gmail.com';
+            $mail->SMTPAuth   = true;
+            $mail->Username   = $_ENV['SMTP_USER'] ?? '';
+            $mail->Password   = $_ENV['SMTP_PASS'] ?? '';
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port       = 587;
+            $mail->setFrom($_ENV['SMTP_USER'], 'Camp System Admin');
+            $mail->CharSet = 'UTF-8'; 
+        } catch (Exception $e) {
+            $msg .= "<br>Mailer Config Error: {$mail->ErrorInfo}";
+        }
+
         while ($row = mysqli_fetch_assoc($recipients_result)) {
             $user_acc = $row['user_account'];
+            $user_email = $row['email'];
             
-            // 插入 notifications 資料表
+            // A. Internal Notification
             $insert_sql = "INSERT INTO notifications (user_account, subject, message) 
                            VALUES ('$user_acc', '$subject', '$message_body')";
-            
-            if (mysqli_query($conn, $insert_sql)) {
-                $count++;
+            mysqli_query($conn, $insert_sql);
+            $count++;
+
+            // B. Email Sending
+            if (!empty($user_email) && !empty($_ENV['SMTP_USER'])) {
+                try {
+                    $mail->clearAddresses();
+                    $mail->addAddress($user_email); 
+                    $mail->Subject = $subject;
+                    $mail->Body    = $message_body;
+                    $mail->send();
+                    $email_count++;
+                } catch (Exception $e) {
+                    // Continue on error
+                }
             }
         }
         
-        if ($count > 0) {
-            $msg = "<div class='alert alert-success alert-dismissible fade show'>
-                        <strong>發送成功！</strong> 已通知 $count 位使用者。
-                        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
-                    </div>";
-        } else {
-            $msg = "<div class='alert alert-warning'>發送失敗，或該活動無人報名。</div>";
-        }
-
-    } else {
-        $msg = "<div class='alert alert-danger'>請填寫完整資訊。</div>";
+        $msg = "<div class='alert alert-success'>
+                    <strong>發送成功！</strong><br>
+                    站內通知: $count 位<br>
+                    Email 寄送: $email_count 封
+                </div>";
     }
 }
 ?>
 
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2><span class="badge bg-secondary">管理後台</span> 發送站內通知</h2>
-        <a href="my_notifications.php" class="btn btn-outline-secondary">回訊息列表</a>
-    </div>
-
-    <p class="text-muted">
-        選擇特定活動，系統將自動發送訊息給所有該活動的報名者。
-    </p>
-    
+    <h2>發送活動通知 (Email + 站內信)</h2>
     <?= $msg ?>
-
-    <div class="card shadow-sm border-info">
-        <div class="card-header bg-info text-white fw-bold">
-            撰寫新通知
+    <form method="POST" action="notify.php" class="card p-4 shadow-sm border-info">
+        <div class="mb-3">
+            <label class="form-label fw-bold">選擇活動群組</label>
+            <select name="target_job_id" class="form-select" required>
+                <option value="">-- 請選擇 --</option>
+                <?php while ($row = mysqli_fetch_assoc($events_result)): ?>
+                    <option value="<?= $row['postid'] ?>">
+                        <?= htmlspecialchars($row['company'] . " - " . $row['content']) ?>
+                    </option>
+                <?php endwhile; ?>
+            </select>
         </div>
-        <div class="card-body">
-            <!-- 發送表單 -->
-            <form method="POST" action="notify.php">
-                
-                <div class="mb-3">
-                    <label for="target_job_id" class="form-label fw-bold">接收對象 (活動群組)</label>
-                    <select name="target_job_id" id="target_job_id" class="form-select" required>
-                        <option value="">-- 請選擇活動 --</option>
-                        <?php 
-                        if ($events_result && mysqli_num_rows($events_result) > 0) {
-                            while ($row = mysqli_fetch_assoc($events_result)) {
-                                echo "<option value='" . $row['postid'] . "'>";
-                                echo "報名【" . htmlspecialchars($row['company']) . " - " . htmlspecialchars($row['content']) . "】的成員";
-                                echo "</option>";
-                            }
-                        } else {
-                            echo "<option value='' disabled>無活動可選</option>";
-                        }
-                        ?>
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label for="subject" class="form-label fw-bold">通知標題</label>
-                    <input type="text" class="form-control" id="subject" name="subject" placeholder="例如：活動地點異動" required>
-                </div>
-
-                <div class="mb-3">
-                    <label for="message" class="form-label fw-bold">通知內容</label>
-                    <textarea class="form-control" id="message" name="message" rows="6" placeholder="請輸入詳細內容..." required></textarea>
-                </div>
-
-                <div class="d-grid gap-2">
-                    <button type="submit" class="btn btn-info text-white btn-lg">確認發送通知</button>
-                </div>
-            </form>
+        <div class="mb-3">
+            <label class="form-label fw-bold">標題</label>
+            <input type="text" name="subject" class="form-control" required>
         </div>
-    </div>
+        <div class="mb-3">
+            <label class="form-label fw-bold">內容</label>
+            <textarea name="message" class="form-control" rows="5" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-info text-white">發送通知</button>
+    </form>
 </div>
-
-<?php mysqli_close($conn); ?>
-<?php 
-include "footer.php"; 
-?>
+<?php include "footer.php"; ?>
