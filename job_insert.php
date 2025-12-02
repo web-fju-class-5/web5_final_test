@@ -16,8 +16,8 @@ if ($_POST) {
     if (mysqli_stmt_prepare($stmt, $sql)) {
         mysqli_stmt_bind_param($stmt, "ss", $company_safe, $content_safe);
         if (mysqli_stmt_execute($stmt)) {
-            // ✅ 新增成功直接跳轉回 job.php
-            header("Location: job.php");
+            // ✅ 新增成功直接跳轉回 index.php
+            header("Location: index.php");
             exit;
         } else {
             $msg = "<div class='alert alert-danger'>新增失敗</div>";

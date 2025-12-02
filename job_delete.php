@@ -21,12 +21,12 @@ try {
                 mysqli_stmt_bind_param($stmt, "i", $postid);
                 mysqli_stmt_execute($stmt);
                 mysqli_close($conn);
-                header('Location: job.php');
+                header('Location: index.php');
                 exit;
             } else {
                 echo "<div class='container mt-3'>
                         <div class='alert alert-danger'>只有管理員可以刪除職缺</div>
-                        <a href='job.php' class='btn btn-secondary'>返回列表</a>
+                        <a href='index.php' class='btn btn-secondary'>返回列表</a>
                       </div>";
                 exit;
             }
@@ -68,7 +68,7 @@ try {
       <a href="job_delete.php?postid=<?=$postid?>&action=confirmed" class="btn btn-danger">刪除</a>
   <?php else: ?>
       <div class="alert alert-danger">只有管理員可以刪除職缺</div>
-      <a href="job.php" class="btn btn-secondary">返回列表</a>
+      <a href="index.php" class="btn btn-secondary">返回列表</a>
   <?php endif; ?>
 </div>
 

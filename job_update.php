@@ -32,7 +32,7 @@ if ($_POST) {
         if (mysqli_stmt_execute($stmt)) {
             mysqli_stmt_close($stmt);
             mysqli_close($conn);
-            header("Location: job.php");
+            header("Location: index.php");
             exit;
         } else {
             $msg = "<div class='alert alert-danger'>更新失敗</div>";
