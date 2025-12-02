@@ -127,7 +127,7 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
         <div class="row g-3 mb-3">
             <div class="col-md-3">
                 <label class="form-label">關鍵字搜尋</label>
-                <input placeholder="廠商或內容" value="<?= htmlspecialchars($search_txt) ?>" type="text" name="searchtxt"
+                <input placeholder="主辦單位或內容" value="<?= htmlspecialchars($search_txt) ?>" type="text" name="searchtxt"
                     class="form-control">
             </div>
             <div class="col-md-2">
@@ -142,7 +142,7 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
                 <label class="form-label">排序方式</label>
                 <select name="order" class="form-select">
                     <option value="" <?= ($order == "") ? 'selected' : '' ?>>預設 (日期最新)</option>
-                    <option value="company" <?= ($order == "company") ? 'selected' : '' ?>>廠商</option>
+                    <option value="company" <?= ($order == "company") ? 'selected' : '' ?>>主辦單位</option>
                     <option value="content" <?= ($order == "content") ? 'selected' : '' ?>>內容</option>
                     <option value="pdate" <?= ($order == "pdate") ? 'selected' : '' ?>>日期</option>
                 </select>
@@ -188,7 +188,7 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
             <table class="table table-bordered table-striped table-hover mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>主辦單位/廠商</th>
+                        <th>主辦單位</th>
                         <th>活動名稱</th>
                         <th>日期</th>
                         <th>功能</th>

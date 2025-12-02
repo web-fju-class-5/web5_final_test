@@ -39,7 +39,7 @@ if (isset($_SESSION["account"])) {
 
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
-      <a class="navbar-brand" href="#">高中生營隊活動系統</a>
+      <a class="navbar-brand" href="index.php">高中生營隊活動系統</a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
         <span class="navbar-toggler-icon"></span>
       </button>
