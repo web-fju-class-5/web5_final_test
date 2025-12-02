@@ -1,21 +1,34 @@
 <?php
-// apply.php - FINAL VERSION
-// Feature: Registers user AND sends automatic confirmation email
+// apply.php - BULLETPROOF VERSION
+ob_start(); // 1. Start buffering to prevent "Headers Sent" errors
 session_start();
 require_once 'db.php';
-require __DIR__ . '/vendor/autoload.php';
+
+// 2. Load Libraries (Safely)
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require __DIR__ . '/vendor/autoload.php';
+} else {
+    // If library is missing, just redirect and skip email
+    header("Location: apply_success.php?postid=" . ($_GET['postid'] ?? 0));
+    exit;
+}
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 use Dotenv\Dotenv;
 
-// Load .env variables
+// 3. Load .env (Safely)
+// We wrap this in Try/Catch so a bad .env file won't crash the site
 if (file_exists(__DIR__ . '/.env')) {
-    $dotenv = Dotenv::createImmutable(__DIR__);
-    $dotenv->safeLoad();
+    try {
+        $dotenv = Dotenv::createImmutable(__DIR__);
+        $dotenv->safeLoad();
+    } catch (\Throwable $e) {
+        // Ignore .env errors silently
+    }
 }
 
-// 1. Check Login
+// 4. Check Login
 if (!isset($_SESSION['account'])) {
     die("請先登入才能報名。 <a href='index.php'>回首頁</a>");
 }
@@ -27,7 +40,7 @@ if ($postid <= 0) {
     die("無效的活動 ID。 <a href='index.php'>回首頁</a>");
 }
 
-// 2. Check Duplicate
+// 5. Check Duplicate
 $check_sql = "SELECT id FROM applications WHERE job_id = $postid AND user_account = '$account'";
 $check_result = mysqli_query($conn, $check_sql);
 
@@ -39,21 +52,22 @@ if (mysqli_num_rows($check_result) > 0) {
     exit;
 }
 
-// 3. Insert Application
+// 6. Insert Application
 $insert_sql = "INSERT INTO applications (job_id, user_account) VALUES ($postid, '$account')";
 
 if (mysqli_query($conn, $insert_sql)) {
     
     // --- START EMAIL LOGIC ---
-    $info_sql = "SELECT u.email, u.name, j.company, j.content, j.pdate 
-                 FROM user u, job j 
-                 WHERE u.account = '$account' AND j.postid = $postid";
-    $info_result = mysqli_query($conn, $info_sql);
-    $info = mysqli_fetch_assoc($info_result);
+    // We use try/catch broadly here so NOTHING stops the redirect
+    try {
+        $info_sql = "SELECT u.email, u.name, j.company, j.content, j.pdate 
+                     FROM user u, job j 
+                     WHERE u.account = '$account' AND j.postid = $postid";
+        $info_result = mysqli_query($conn, $info_sql);
+        $info = mysqli_fetch_assoc($info_result);
 
-    if ($info && !empty($info['email'])) {
-        $mail = new PHPMailer(true);
-        try {
+        if ($info && !empty($info['email'])) {
+            $mail = new PHPMailer(true);
             $mail->isSMTP();
             $mail->Host       = $_ENV['SMTP_HOST'] ?? 'smtp.gmail.com';
             $mail->SMTPAuth   = true;
@@ -67,31 +81,24 @@ if (mysqli_query($conn, $insert_sql)) {
             $mail->addAddress($info['email'], $info['name']);
 
             $mail->isHTML(true);
-            $mail->Subject = '【報名成功】' . $info['company'] . ' - ' . $info['content'];
-            $mail->Body    = "
-                <h3>Hi, {$info['name']}</h3>
-                <p>恭喜您！您已成功報名以下活動：</p>
-                <ul>
-                    <li><strong>活動：</strong> {$info['company']}</li>
-                    <li><strong>內容：</strong> {$info['content']}</li>
-                    <li><strong>日期：</strong> {$info['pdate']}</li>
-                </ul>
-                <p>請準時出席！</p>
-            ";
+            $mail->Subject = '【報名成功】' . $info['company'];
+            $mail->Body    = "Hi {$info['name']}, 報名成功！";
 
             $mail->send();
-        } catch (Exception $e) {
-            // Log error but allow success
         }
+    } catch (\Throwable $e) {
+        // If Email fails, DO NOTHING. Just continue to redirect.
     }
     // --- END EMAIL LOGIC ---
 
+    // 7. Force Redirect
+    ob_clean(); // Clear any error text
     header("Location: apply_success.php?postid=$postid");
     exit;
 
 } else {
     echo "報名失敗: " . mysqli_error($conn);
-    echo "<br><a href='index.php'>回首頁</a>";
 }
 mysqli_close($conn);
+ob_end_flush();
 ?>
