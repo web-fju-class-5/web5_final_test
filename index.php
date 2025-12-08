@@ -234,7 +234,73 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
     </div>
 </div>
 
-<?php mysqli_close($conn); ?>
+
+   <!-- 圖表區塊 -->
+<div class="mt-4" style="height: 400px;">
+    <h3>報名人數統計圖</h3>
+    <canvas id="myChart"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const ctx = document.getElementById('myChart');
+
+    // fetch 開始
+    fetch('chart_data.php')
+        .then(response => response.json()) // 處理 JSON
+        .then(json => {
+            // Chart 實例開始
+            new Chart(ctx, {
+                type: 'bar',
+                data: {   // data 區塊開始
+                    labels: json.labels,
+                    datasets: [{
+                        label: '# 報名人數',
+                        data: json.data,
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1,
+                        barThickness: 40,
+                        maxBarThickness: 50
+                    }]
+                }, // data 區塊結束
+                options: { // options 區塊開始
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '活動名稱',
+                                color: '#000',
+                                font: { size: 16, weight: 'bold' }
+                            },
+                            ticks: { autoSkip: false }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '報名人數',
+                                font: { size: 16, weight: 'bold' }
+                            },
+                            ticks: { precision: 0, stepSize: 1 }
+                        }
+                    }
+                } // options 區塊結束
+            }); // Chart 實例結束
+        }) // then(json) 結束
+        .catch(err => console.error('抓取報名統計資料失敗:', err)); // catch 結束
+}); // DOMContentLoaded 結束
+</script>
+<br>
+<br>
+<br>
+
+</div>
+
 <?php
-include "footer.php";
+mysqli_close($conn);
+include "footer.php";  
 ?>

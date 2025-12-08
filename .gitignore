@@ -1,1 +1,4 @@
-/vendor/
+.env
+vendor/
+uploads/
+composer.phar
