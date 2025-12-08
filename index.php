@@ -118,7 +118,7 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
     <!-- 管理員按鈕：新增職缺 (權限檢查) -->
     <?php if (!empty($_SESSION['role']) && (strtoupper(trim($_SESSION['role'])) === 'M' || strtoupper(trim($_SESSION['role'])) === 'T')): ?>
         <a href="job_insert.php" class="btn btn-primary position-absolute"
-            style="top: 5.5rem; right: 2rem; z-index: 10;">新增職缺</a>
+            style="top: 5.5rem; right: 2rem; z-index: 10;">新增活動</a>
     <?php endif; ?>
 
     <!-- 搜尋表單 -->

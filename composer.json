@@ -1,0 +1,19 @@
+{
+    "name": "asus/web5_final_test",
+    "description": "composer require phpmailer/phpmailer",
+    "autoload": {
+        "psr-4": {
+            "Asus\\Web5FinalTest\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "chen",
+            "email": "john30123ny@gmail.com"
+        }
+    ],
+    "require": {
+        "phpmailer/phpmailer": "^7.0",
+        "vlucas/phpdotenv": "^5.6"
+    }
+}
