@@ -35,34 +35,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $new_password = $_POST['new_password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
 
-    // 如果有填密碼欄位
+    $avatar_path = $row['avatar']; // 預設維持原圖
+
+    // 處理圖片上傳
+    if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
+        $fileTmpPath = $_FILES['avatar']['tmp_name'];
+        $fileName = $_FILES['avatar']['name'];
+        $fileSize = $_FILES['avatar']['size'];
+        $fileType = $_FILES['avatar']['type'];
+        $fileNameCmps = explode(".", $fileName);
+        $fileExtension = strtolower(end($fileNameCmps));
+
+        $allowedfileExtensions = array('jpg', 'gif', 'png', 'jpeg');
+        if (in_array($fileExtension, $allowedfileExtensions)) {
+            // 建立唯一檔名避免衝突
+            $newFileName = md5(time() . $fileName) . '.' . $fileExtension;
+            $uploadFileDir = 'uploads/avatars/';
+            
+            // 確保目錄存在 (雖然前面有建，但程式碼裡多檢查較安全)
+            if (!file_exists($uploadFileDir)) {
+                mkdir($uploadFileDir, 0777, true);
+            }
+
+            $dest_path = $uploadFileDir . $newFileName;
+
+            if(move_uploaded_file($fileTmpPath, $dest_path)) {
+                $avatar_path = $dest_path;
+            } else {
+                $message .= " 圖片上傳失敗。";
+            }
+        } else {
+            $message .= " 不支援的圖片格式。";
+        }
+    }
+
+    // 更新資料庫
     if ($old_password === $new_password && $new_password === $confirm_password) {
-        
         if ($old_password !== $row['password']) {
             $message = "舊密碼輸入錯誤！";
         } elseif ($new_password !== $confirm_password) {
             $message = "新密碼輸入不一致！";
         } else {
-            
-            $stmt = $conn->prepare("UPDATE user SET name=?, password=? WHERE account=?");
-            $stmt->bind_param("sss", $name, $new_password, $user);
+            $stmt = $conn->prepare("UPDATE user SET name=?, password=?, avatar=? WHERE account=?");
+            $stmt->bind_param("ssss", $name, $new_password, $avatar_path, $user); // 注意這裡綁定參數變了
             if ($stmt->execute()) {
                 $message = "資料更新成功！";
                 $_SESSION['name'] = $name;
                 $row['password'] = $new_password;
+                $row['avatar'] = $avatar_path;
             } else {
                 $message = "資料更新失敗！";
             }
         }
     } else {
-        
-        $stmt = $conn->prepare("UPDATE user SET name=? WHERE account=?");
-        $stmt->bind_param("ss", $name, $user);
+        $stmt = $conn->prepare("UPDATE user SET name=?, avatar=? WHERE account=?");
+        $stmt->bind_param("sss", $name, $avatar_path, $user);
         if ($stmt->execute()) {
-            $message = "姓名更新成功！";
+            $message = "資料更新成功！";
             $_SESSION['name'] = $name;
+            $row['avatar'] = $avatar_path;
         } else {
-            $message = "姓名更新失敗！";
+            $message = "資料更新失敗！";
         }
     }
 }
@@ -77,36 +110,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     <?php endif; ?>
 
-    <form method="post">
-        <div class="mb-3">
-            <label for="account" class="form-label">帳號</label>
-            <input type="text" class="form-control" id="account" value="<?php echo htmlspecialchars($row['account']); ?>" readonly>
-        </div>
-        <div class="mb-3">
-            <label for="role" class="form-label">身分</label>
-            <input type="text" class="form-control" id="role" value="<?php echo htmlspecialchars($row['role']); ?>" readonly>
-        </div>
-        <div class="mb-3">
-            <label for="name" class="form-label">姓名</label>
-            <input type="text" class="form-control" id="name" name="name" value="<?php echo htmlspecialchars($row['name']); ?>" required>
-        </div>
-        <hr>
-        <h2>修改密碼</h2>
+    <form method="post" enctype="multipart/form-data">
+        <div class="row">
+            <div class="col-md-4 text-center mb-4">
+                <?php
+                $avatarPath = "uploads/avatars/default.png"; // 預設頭像
+                if (!empty($row['avatar']) && file_exists($row['avatar'])) {
+                    $avatarPath = $row['avatar'];
+                }
+                ?>
+                <img src="<?php echo htmlspecialchars($avatarPath); ?>" alt="User Avatar"
+                    class="img-thumbnail rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                <div class="mb-3">
+                    <label for="avatar" class="form-label">更換頭像</label>
+                    <input type="file" class="form-control" id="avatar" name="avatar"
+                        accept="image/png, image/jpeg, image/gif">
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="mb-3">
+                    <label for="account" class="form-label">帳號</label>
+                    <input type="text" class="form-control" id="account"
+                        value="<?php echo htmlspecialchars($row['account']); ?>" readonly>
+                </div>
+                <div class="mb-3">
+                    <label for="role" class="form-label">身分</label>
+                    <input type="text" class="form-control" id="role"
+                        value="<?php echo htmlspecialchars($row['role']); ?>" readonly>
+                </div>
+                <div class="mb-3">
+                    <label for="name" class="form-label">姓名</label>
+                    <input type="text" class="form-control" id="name" name="name"
+                        value="<?php echo htmlspecialchars($row['name']); ?>" required>
+                </div>
+                <hr>
+                <h2>修改密碼</h2>
 
-        <div class="mb-3">
-            <label for="old_password" class="form-label">舊密碼</label>
-            <input type="password" class="form-control" id="old_password" name="old_password" autocomplete="off">
+                <div class="mb-3">
+                    <label for="old_password" class="form-label">舊密碼</label>
+                    <input type="password" class="form-control" id="old_password" name="old_password"
+                        autocomplete="off">
+                </div>
+                <div class="mb-3">
+                    <label for="new_password" class="form-label">新密碼</label>
+                    <input type="password" class="form-control" id="new_password" name="new_password"
+                        autocomplete="off">
+                </div>
+                <div class="mb-3">
+                    <label for="confirm_password" class="form-label">確認新密碼</label>
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password"
+                        autocomplete="off">
+                </div>
+                <button type="submit" class="btn btn-success">更新</button>
+                <a href="index.php" class="btn btn-secondary">取消</a>
+            </div>
         </div>
-        <div class="mb-3">
-            <label for="new_password" class="form-label">新密碼</label>
-            <input type="password" class="form-control" id="new_password" name="new_password" autocomplete="off">
-        </div>
-        <div class="mb-3">
-            <label for="confirm_password" class="form-label">確認新密碼</label>
-            <input type="password" class="form-control" id="confirm_password" name="confirm_password" autocomplete="off">
-        </div>
-        <button type="submit" class="btn btn-success">更新</button>
-        <a href="index.php" class="btn btn-secondary">取消</a>
     </form>
 </div>
 
