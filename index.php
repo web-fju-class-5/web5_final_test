@@ -1,17 +1,18 @@
 <?php
 // index.php
 // --------------------------------------------------------
-// 這是系統的首頁，功能包含：
-// 1. 顯示所有職缺/活動列表
-// 2. 提供關鍵字、日期搜尋
-// 3. 提供「多重標籤」篩選 (使用 OR 邏輯：符合任一標籤即顯示)
-// 4. 提供「報名」按鈕連結到 apply.php
+// 系統首頁 (Home Page)
+// 功能總覽：
+// 1. 活動列表展示
+// 2. 條件搜尋 (關鍵字、日期)
+// 3. 標籤篩選 (Tag Filtering)
+// 4. 管理員操作入口 (新增活動)
+// 5. 報名入口
+// 6. 統計圖表展示 (Chart.js)
 // --------------------------------------------------------
 
-// 1. 啟動 Session (必須在所有 HTML 輸出之前)
+// 1. 啟動 Session
 session_start();
-
-
 
 $title = "活動搜尋";
 include "header.php"; // 引入頁首
@@ -24,64 +25,70 @@ try {
     exit;
 }
 
-// 3. 載入所有標籤 (Tags) 用於前端顯示 checkbox
+// 3. 載入標籤 (Tags) 資料
+// 用於在頁面上生成篩選的 Checkbox
 $tags_by_type = [];
 try {
-    // SQL: 選取 id, name, type 並依照類型排序
+    // 查詢所有標籤，並按類型排序
     $tags_sql = "SELECT id, name, type FROM tags ORDER BY type, name";
     $tags_result = mysqli_query($conn, $tags_sql);
 
     if ($tags_result) {
-        // 將結果整理成陣列，結構：$tags_by_type['技能類'] = [標籤1, 標籤2...]
+        // 將標籤依 Type 分組整理
+        // $tags_by_type['技能類'] = [tag1, tag2...]
         while ($tag_row = mysqli_fetch_assoc($tags_result)) {
             $tags_by_type[$tag_row['type']][] = $tag_row;
         }
     }
 } catch (Exception $e) {
-    // 忽略標籤讀取錯誤，不影響主頁面顯示
+    // 若標籤讀取失敗，僅忽略不顯示，不影響主要列表
 }
 
-// 4. 接收並處理前端傳來的搜尋參數 (POST)
-// 使用 ?? 運算子防止未定義錯誤
-$selected_tags = $_POST['tags'] ?? []; // 使用者勾選的標籤陣列
+// 4. 接收搜尋參數 (POST)
+// 使用 $_POST['key'] ?? default 語法確保變數存在
+$selected_tags = $_POST['tags'] ?? []; // 使用者目前勾選的標籤 ID 陣列
 $selected_tags_count = count($selected_tags);
 
-$order = $_POST["order"] ?? ""; // 排序依據
-// 防止 SQL Injection: 使用 mysqli_real_escape_string 處理文字輸入
+$order = $_POST["order"] ?? ""; // 排序欄位
+// 搜尋關鍵字 (防止 SQL Injection)
 $search_txt = mysqli_real_escape_string($conn, $_POST["searchtxt"] ?? "");
-$date_start = $_POST["date_start"] ?? "";
-$date_end = $_POST["date_end"] ?? "";
+$date_start = $_POST["date_start"] ?? ""; // 起始日
+$date_end = $_POST["date_end"] ?? "";     // 結束日
 
-// 日期邏輯檢查：若起始日大於結束日，自動交換
+// 日期區間智慧調整：若「起始 > 結束」，自動交換
 if ($date_start && $date_end && $date_start > $date_end) {
     [$date_start, $date_end] = [$date_end, $date_start];
 }
 
-// 5. 建構 SQL 查詢語句 (核心邏輯)
+// 5. 動態構建 SQL 查詢語句
 $sql_select = "SELECT j.postid, j.company, j.content, j.pdate";
-$sql_from = " FROM job j "; // 主表 job，別名 j
+$sql_from = " FROM job j "; // 別名 j 代表 job 表
 $sql_join = "";
 $sql_group_by = "";
-$where_conditions = []; // 存放所有 WHERE 條件
+$where_conditions = []; // 用來收集所有的 WHERE 條件字串
 
-// --- 處理多標籤篩選 (OR 邏輯) ---
+// --- 5-1. 多標籤篩選邏輯 (OR) ---
+// 若使用者有勾選標籤
 if ($selected_tags_count > 0) {
-    // 若有勾選標籤，需 JOIN job_tags 表
+    // Join job_tags 關聯表
     $sql_join = " JOIN job_tags jt ON j.postid = jt.job_id ";
 
-    // 製作 IN 子句，例如: jt.tag_id IN (1, 3, 5)
+    // 製作 IN (1, 2, 3) 字句
+    // array_map('intval') 確保都是整數，避免注入
     $in_clause = implode(',', array_map('intval', $selected_tags));
     $where_conditions[] = " jt.tag_id IN ($in_clause) ";
 
-    // 為了避免同一職缺因符合多個標籤而重複出現，需使用 GROUP BY
+    // 因為 JOIN 可能導致同一職缺出現多次 (對應多個 Tag)，所以需要 GROUP BY 去重
     $sql_group_by = " GROUP BY j.postid ";
 }
 
-// --- 處理關鍵字搜尋 ---
+// --- 5-2. 關鍵字搜尋 ---
 if ($search_txt) {
+    // 搜尋 company 或 content 欄位
     $where_conditions[] = " (j.company LIKE '%$search_txt%' OR j.content LIKE '%$search_txt%') ";
 }
-// --- 處理日期區間 ---
+
+// --- 5-3. 日期篩選 ---
 if ($date_start) {
     $where_conditions[] = " j.pdate >= '$date_start' ";
 }
@@ -89,41 +96,42 @@ if ($date_end) {
     $where_conditions[] = " j.pdate <= '$date_end' ";
 }
 
-// 組合 WHERE 子句
+// --- 5-4. 組合 WHERE 子句 ---
 $sql_where = "";
 if (count($where_conditions) > 0) {
     $sql_where = " WHERE " . implode(' AND ', $where_conditions);
 }
 
-// 組合最終 SQL
+// 組合完整 SQL
 $sql = $sql_select . $sql_from . $sql_join . $sql_where . $sql_group_by;
 
-// --- 處理排序 ---
-// 白名單檢查，防止 SQL 注入
+// --- 5-5. 排序邏輯 ---
+// 白名單檢查：只允許特定的排序欄位，防止惡意輸入
 if ($order && in_array($order, ['company', 'content', 'pdate'])) {
     $sql .= " ORDER BY j.$order ";
 } else {
-    // 預設排序：日期新到舊
+    // 預設排序：依日期最新優先 (DESC)
     $sql .= " ORDER BY j.pdate DESC ";
 }
 ?>
 
 <div class="container mt-4">
 
-    <!-- 歡迎訊息 -->
+    <!-- 歡迎區塊 -->
     <div class="alert alert-info py-2">
         你好，<strong><?= htmlspecialchars($_SESSION['name']) ?></strong>
     </div>
 
-    <!-- 管理員按鈕：新增職缺 (權限檢查) -->
+    <!-- 管理功能：新增活動按鈕 -->
+    <!-- 只有 Role = M (Manager) 或 T (Teacher) 可見 -->
     <?php if (!empty($_SESSION['role']) && (strtoupper(trim($_SESSION['role'])) === 'M' || strtoupper(trim($_SESSION['role'])) === 'T')): ?>
         <a href="job_insert.php" class="btn btn-primary position-absolute"
             style="top: 5.5rem; right: 2rem; z-index: 10;">新增活動</a>
     <?php endif; ?>
 
-    <!-- 搜尋表單 -->
+    <!-- 搜尋與篩選表單 -->
     <form method="POST" action="index.php" class="card card-body bg-light mb-4">
-        <!-- 上半部：關鍵字、日期、排序 -->
+        <!-- 上半部搜尋列 -->
         <div class="row g-3 mb-3">
             <div class="col-md-3">
                 <label class="form-label">關鍵字搜尋</label>
@@ -141,6 +149,7 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
             <div class="col-md-3">
                 <label class="form-label">排序方式</label>
                 <select name="order" class="form-select">
+                    <!-- 判斷目前選中的項目並加上 selected 屬性 -->
                     <option value="" <?= ($order == "") ? 'selected' : '' ?>>預設 (日期最新)</option>
                     <option value="company" <?= ($order == "company") ? 'selected' : '' ?>>主辦單位</option>
                     <option value="content" <?= ($order == "content") ? 'selected' : '' ?>>內容</option>
@@ -152,19 +161,20 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
             </div>
         </div>
 
-        <!-- 下半部：標籤篩選 -->
+        <!-- 下半部標籤區域 -->
         <hr>
         <label class="form-label fw-bold text-primary">標籤篩選 (勾選任一條件即可)</label>
         <div class="row g-3">
             <?php if (empty($tags_by_type)): ?>
                 <div class="col-12 text-muted">目前無可用標籤。</div>
             <?php else: ?>
+                <!-- 迴圈顯示各類標籤 -->
                 <?php foreach ($tags_by_type as $type => $tags): ?>
                     <div class="col-md-4">
                         <h5><?= htmlspecialchars($type) ?></h5>
                         <div class="border rounded p-2 bg-white" style="max-height: 150px; overflow-y: auto;">
                             <?php foreach ($tags as $tag):
-                                // 檢查是否已勾選 (保留狀態)
+                                // 判斷標籤是否被選中
                                 $is_checked = in_array($tag['id'], $selected_tags);
                                 ?>
                                 <div class="form-check">
@@ -197,9 +207,10 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
                 <tbody>
                     <?php
                     try {
-                        // 執行 SQL
+                        // 執行 SQL 查詢
                         $result = mysqli_query($conn, $sql);
 
+                        // 判斷有無資料
                         if ($result && mysqli_num_rows($result) > 0) {
                             while ($row = mysqli_fetch_assoc($result)) {
                                 ?>
@@ -208,11 +219,11 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
                                     <td><?= htmlspecialchars($row["content"]) ?></td>
                                     <td><?= htmlspecialchars($row["pdate"]) ?></td>
                                     <td>
-                                        <!-- 原有的修改/刪除按鈕 -->
+                                        <!-- 修改/刪除按鈕 (應視權限隱藏，不過原程式碼似乎公開) -->
                                         <a href="job_update.php?postid=<?= $row["postid"] ?>" class="btn btn-primary btn-sm">修改</a>
                                         <a href="job_delete.php?postid=<?= $row["postid"] ?>" class="btn btn-danger btn-sm">刪除</a>
 
-                                        <!-- 報名按鈕：導向 apply.php -->
+                                        <!-- 報名按鈕 -->
                                         <a href="apply.php?postid=<?= $row["postid"] ?>" class="btn btn-success btn-sm ms-2"
                                             onclick="return confirm('確定要報名 <?= htmlspecialchars($row['company']) ?> 的活動嗎？');">
                                             報名
@@ -234,73 +245,72 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
     </div>
 </div>
 
-
-   <!-- 圖表區塊 -->
+<!-- 統計圖表區塊 -->
 <div class="mt-4" style="height: 400px;">
     <h3>報名人數統計圖</h3>
     <canvas id="myChart"></canvas>
 </div>
 
+<!-- 引入 Chart.js 函式庫 -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-    const ctx = document.getElementById('myChart');
+    // 等待 DOM 載入完成
+    document.addEventListener("DOMContentLoaded", function () {
+        const ctx = document.getElementById('myChart');
 
-    // fetch 開始
-    fetch('chart_data.php')
-        .then(response => response.json()) // 處理 JSON
-        .then(json => {
-            // Chart 實例開始
-            new Chart(ctx, {
-                type: 'bar',
-                data: {   // data 區塊開始
-                    labels: json.labels,
-                    datasets: [{
-                        label: '# 報名人數',
-                        data: json.data,
-                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1,
-                        barThickness: 40,
-                        maxBarThickness: 50
-                    }]
-                }, // data 區塊結束
-                options: { // options 區塊開始
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: '活動名稱',
-                                color: '#000',
-                                font: { size: 16, weight: 'bold' }
+        // 透過 fetch API 從 chart_data.php 取得 JSON 資料
+        fetch('chart_data.php')
+            .then(response => response.json()) // 解析 JSON
+            .then(json => {
+                // 初始化 Chart.js
+                new Chart(ctx, {
+                    type: 'bar', // 圖表類型：長條圖
+                    data: {
+                        labels: json.labels, // X 軸標籤 (活動名稱)
+                        datasets: [{
+                            label: '# 報名人數',
+                            data: json.data, // Y 軸數據 (人數)
+                            backgroundColor: 'rgba(54, 162, 235, 0.5)', // 長條顏色
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1,
+                            barThickness: 40,
+                            maxBarThickness: 50
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: '活動名稱',
+                                    color: '#000',
+                                    font: { size: 16, weight: 'bold' }
+                                }
                             },
-                            ticks: { autoSkip: false }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: '報名人數',
-                                font: { size: 16, weight: 'bold' }
-                            },
-                            ticks: { precision: 0, stepSize: 1 }
+                            y: {
+                                beginAtZero: true, // Y 軸從 0 開始
+                                title: {
+                                    display: true,
+                                    text: '報名人數',
+                                    font: { size: 16, weight: 'bold' }
+                                },
+                                ticks: { precision: 0, stepSize: 1 } // 設定刻度為整數
+                            }
                         }
                     }
-                } // options 區塊結束
-            }); // Chart 實例結束
-        }) // then(json) 結束
-        .catch(err => console.error('抓取報名統計資料失敗:', err)); // catch 結束
-}); // DOMContentLoaded 結束
+                });
+            })
+            .catch(err => console.error('抓取報名統計資料失敗:', err));
+    });
 </script>
-<br>
-<br>
-<br>
 
+<br><br><br>
 </div>
 
 <?php
+// 關閉資料庫連線並引入頁尾
 mysqli_close($conn);
-include "footer.php";  
+include "footer.php";
 ?>
