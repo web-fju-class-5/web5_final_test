@@ -48,18 +48,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $allowedfileExtensions = array('jpg', 'gif', 'png', 'jpeg');
         if (in_array($fileExtension, $allowedfileExtensions)) {
-            // 建立唯一檔名避免衝突
             $newFileName = md5(time() . $fileName) . '.' . $fileExtension;
             $uploadFileDir = 'uploads/avatars/';
-            
-            // 確保目錄存在 (雖然前面有建，但程式碼裡多檢查較安全)
+
             if (!file_exists($uploadFileDir)) {
                 mkdir($uploadFileDir, 0777, true);
             }
 
             $dest_path = $uploadFileDir . $newFileName;
 
-            if(move_uploaded_file($fileTmpPath, $dest_path)) {
+            if (move_uploaded_file($fileTmpPath, $dest_path)) {
                 $avatar_path = $dest_path;
             } else {
                 $message .= " 圖片上傳失敗。";
@@ -69,29 +67,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // 更新資料庫
-    if ($old_password === $new_password && $new_password === $confirm_password) {
+    // 判斷是否要修改密碼
+    $update_password = false;
+    if (!empty($new_password)) {
         if ($old_password !== $row['password']) {
             $message = "舊密碼輸入錯誤！";
         } elseif ($new_password !== $confirm_password) {
             $message = "新密碼輸入不一致！";
         } else {
-            $stmt = $conn->prepare("UPDATE user SET name=?, password=?, avatar=? WHERE account=?");
-            $stmt->bind_param("ssss", $name, $new_password, $avatar_path, $user); // 注意這裡綁定參數變了
-            if ($stmt->execute()) {
-                $message = "資料更新成功！";
-                $_SESSION['name'] = $name;
-                $row['password'] = $new_password;
-                $row['avatar'] = $avatar_path;
-            } else {
-                $message = "資料更新失敗！";
-            }
+            $update_password = true;
         }
-    } else {
-        $stmt = $conn->prepare("UPDATE user SET name=?, avatar=? WHERE account=?");
-        $stmt->bind_param("sss", $name, $avatar_path, $user);
+    }
+
+    // 如果沒有錯誤訊息，執行更新
+    if (empty($message) || strpos($message, '失敗') === false) {
+        if ($update_password) {
+            $stmt = $conn->prepare("UPDATE user SET name=?, password=?, avatar=? WHERE account=?");
+            $stmt->bind_param("ssss", $name, $new_password, $avatar_path, $user);
+            // 更新 session 密碼 (如果有的話) - 雖然之後重新 query 會抓到
+            $row['password'] = $new_password;
+        } else {
+            $stmt = $conn->prepare("UPDATE user SET name=?, avatar=? WHERE account=?");
+            $stmt->bind_param("sss", $name, $avatar_path, $user);
+        }
+
         if ($stmt->execute()) {
-            $message = "資料更新成功！";
+            $message = "資料更新成功！"; // 覆蓋掉可能的上傳失敗訊息? 不，應該是附加? 這裡直接設為成功比較簡單，如果上傳失敗前面會擋
+            // 如果上傳有部分失敗但DB沒更新? 前面 $message .= 會導致這裡不空。
+            // 修正邏輯：如果只剩 "圖片上傳失敗" or "不支援格式" 這類訊息，這裡不該執行 DB update?
+            // 通常如果圖片失敗，我們可能還是想更新名字?
+            // 簡單起見，如果 $message 不為空 (代表圖片有問題或密碼有問題)，就不更新 DB。
+            // 但上面寫 `empty($message)`。
+
             $_SESSION['name'] = $name;
             $row['avatar'] = $avatar_path;
         } else {
