@@ -74,8 +74,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // 檢查副檔名是否合法
         if (in_array($fileExtension, $allowedfileExtensions)) {
-            // 產生唯一的新檔名 (md5 hash 當前時間+原檔名) 防止檔名衝突
-            $newFileName = md5(time() . $fileName) . '.' . $fileExtension;
+            // 使用原始檔名 (不防止檔名衝突)
+            $newFileName = $fileName;
             // 指定上傳目錄
             $uploadFileDir = 'uploads/avatars/';
 

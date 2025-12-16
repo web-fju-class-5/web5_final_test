@@ -12,6 +12,10 @@ session_start();
 $title = "發送站內通知";
 include "header.php";
 require_once 'db.php';
+require 'vendor/autoload.php'; // 引入 Composer 套件
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 // --- 1. 權限驗證 (最重要) ---
 // 判斷 role 是否為 'M' (Manager) 或 'T' (Teacher)
@@ -19,6 +23,10 @@ $is_admin = false;
 if (!empty($_SESSION['role']) && (strtoupper(trim($_SESSION['role'])) === 'M' || strtoupper(trim($_SESSION['role'])) === 'T')) {
     $is_admin = true;
 }
+
+// 載入 .env 環境變數
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
 
 // 若非管理員，顯示拒絕存取畫面並中止程式
 if (!$is_admin) {
@@ -62,40 +70,85 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // 檢查必填欄位是否都有值
     if ($target_job_id > 0 && !empty($subject) && !empty($message_body)) {
 
-        // 步驟 A: 查詢該活動的所有報名者帳號
-        $recipients_sql = "SELECT user_account FROM applications WHERE job_id = $target_job_id";
+        // 步驟 A: 查詢該活動的所有報名者帳號，並關聯取出 email 與姓名
+        // 假設 user 資料表中有 email 欄位
+        $recipients_sql = "SELECT a.user_account, u.email, u.name 
+                           FROM applications a 
+                           JOIN user u ON a.user_account = u.account 
+                           WHERE a.job_id = $target_job_id";
         $recipients_result = mysqli_query($conn, $recipients_sql);
 
         $count = 0; // 用來計算成功發送幾筆
+        $mail_count = 0; // 計算成功寄出幾封信
 
-        // 步驟 B: 跑迴圈，逐一插入通知紀錄到 notifications 表
+        // 設定 PHPMailer
+        // 實務上建議這些設定可以抽離到設定檔
+        $mail = new PHPMailer(true);
+        try {
+            // 伺服器設定 (請依照實際 SMTP 資訊修改)
+            $mail->isSMTP();
+            $mail->Host = $_ENV['SMTP_HOST'];                     // 從 .env 讀取
+            $mail->SMTPAuth = true;                                   // 啟用 SMTP 驗證
+            $mail->Username = $_ENV['SMTP_USER'];                 // 從 .env 讀取
+            $mail->Password = $_ENV['SMTP_PASS'];                    // 從 .env 讀取
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;         // 啟用 TLS 加密
+            $mail->Port = 587;                                    // TCP port
+            $mail->CharSet = 'UTF-8';                                // 設定字元編碼
+
+            // 設定寄件人
+            $mail->setFrom($_ENV['SMTP_USER'], '系統通知');
+        } catch (Exception $e) {
+            // SMTP 設定失敗，不影響站內信發送
+        }
+
+        // 步驟 B: 跑迴圈，逐一插入通知紀錄到 notifications 表，並寄送 Email
         while ($row = mysqli_fetch_assoc($recipients_result)) {
             $user_acc = $row['user_account'];
+            $user_email = $row['email'];
+            $user_name = $row['name'];
 
-            // 寫入 SQL：包含 接收者帳號、標題、內容
+            // 1. 寫入站內信 (notifications 表)
             $insert_sql = "INSERT INTO notifications (user_account, subject, message) 
                            VALUES ('$user_acc', '$subject', '$message_body')";
 
-            // 執行插入
             if (mysqli_query($conn, $insert_sql)) {
                 $count++;
+            }
+
+            // 2. 寄送 Email (如果使用者有 Email)
+            if (!empty($user_email)) {
+                try {
+                    $mail->clearAddresses(); // 清除上一位的收件人
+                    $mail->addAddress($user_email, $user_name); // 加入收件人
+
+                    $mail->isHTML(true);                                  // 設定為 HTML 格式
+                    $mail->Subject = $subject;
+                    $mail->Body = nl2br($message_body);                // 內容 (轉 HTML換行)
+                    $mail->AltBody = $message_body;                       // 純文字內容
+
+                    $mail->send();
+                    $mail_count++;
+                } catch (Exception $e) {
+                    // 寄信失敗不中斷迴圈，僅記錄錯誤或忽略
+                    // error_log("Message could not be sent to $user_email. Mailer Error: {$mail->ErrorInfo}");
+                }
             }
         }
 
         // 檢查發送結果
         if ($count > 0) {
-            // 成功訊息 (Bootstrap Alert)
+            // 成功訊息
             $msg = "<div class='alert alert-success alert-dismissible fade show'>
-                        <strong>發送成功！</strong> 已通知 $count 位使用者。
+                        <strong>發送成功！</strong><br> 
+                        已發送 $count 則站內通知。<br>
+                        已嘗試寄送 $mail_count 封 Email (需設定 SMTP 才能實際寄出)。
                         <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
                     </div>";
         } else {
-            // 可能是該活動剛好沒人報名 (理論上前面 SQL 篩選過，但雙重保險)
             $msg = "<div class='alert alert-warning'>發送失敗，或該活動無人報名。</div>";
         }
 
     } else {
-        // 欄位缺漏
         $msg = "<div class='alert alert-danger'>請填寫完整資訊。</div>";
     }
 }
