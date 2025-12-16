@@ -21,18 +21,18 @@ if ($_POST) {
     $company = $_POST["company"] ?? "";
     $content = $_POST["content"] ?? "";
 
-    // 避免 SQL Injection
-    $company_safe = mysqli_real_escape_string($conn, $company);
-    $content_safe = mysqli_real_escape_string($conn, $content);
+    // 避免 SQL Injection (使用 Prepared Statement 即可，不需 escape)
+    // $company_safe = mysqli_real_escape_string($conn, $company);
+    // $content_safe = mysqli_real_escape_string($conn, $content);
 
     $sql = "UPDATE job SET company = ?, content = ? WHERE postid = ?";
     $stmt = mysqli_stmt_init($conn);
     if (mysqli_stmt_prepare($stmt, $sql)) {
-        mysqli_stmt_bind_param($stmt, "ssi", $company_safe, $content_safe, $postid);
+        mysqli_stmt_bind_param($stmt, "ssi", $company, $content, $postid);
         if (mysqli_stmt_execute($stmt)) {
             mysqli_stmt_close($stmt);
             mysqli_close($conn);
-            header("Location: job.php");
+            header("Location: index.php");
             exit;
         } else {
             $msg = "<div class='alert alert-danger'>更新失敗</div>";
@@ -57,25 +57,26 @@ mysqli_close($conn);
 ?>
 
 <div class="container my-5">
-<form action="job_update.php?postid=<?=$postid?>&action=confirmed" method="post">
+    <form action="job_update.php?postid=<?= $postid ?>&action=confirmed" method="post">
 
-  <!-- 隱藏欄位傳送 postid -->
-  <input type="hidden" name="postid" value="<?=$postid?>">
+        <!-- 隱藏欄位傳送 postid -->
+        <input type="hidden" name="postid" value="<?= $postid ?>">
 
-  <div class="mb-3 row">
-    <label for="_company" class="col-sm-2 col-form-label">求才廠商</label>
-    <div class="col-sm-10">
-      <input type="text" class="form-control" name="company" id="_company" 
-             placeholder="公司名稱" value="<?=htmlspecialchars($company)?>" required>
-    </div>
-  </div>
-  <div class="mb-3">
-    <label for="_content" class="form-label">求才內容</label>
-    <textarea class="form-control" name="content" id="_content" rows="10" required><?=htmlspecialchars($content)?></textarea>
-  </div>
-  <input class="btn btn-primary" type="submit" value="送出">
-</form>
-<?=$msg?>
+        <div class="mb-3 row">
+            <label for="_company" class="col-sm-2 col-form-label">求才廠商</label>
+            <div class="col-sm-10">
+                <input type="text" class="form-control" name="company" id="_company" placeholder="公司名稱"
+                    value="<?= htmlspecialchars($company) ?>" required>
+            </div>
+        </div>
+        <div class="mb-3">
+            <label for="_content" class="form-label">求才內容</label>
+            <textarea class="form-control" name="content" id="_content" rows="10"
+                required><?= htmlspecialchars($content) ?></textarea>
+        </div>
+        <input class="btn btn-primary" type="submit" value="送出">
+    </form>
+    <?= $msg ?>
 </div>
 
 <?php

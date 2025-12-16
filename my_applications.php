@@ -8,12 +8,7 @@
 
 session_start();
 
-// 模擬登入 (測試用)
-if (!isset($_SESSION['account'])) {
-    $_SESSION['account'] = 'user1';
-    $_SESSION['name'] = '小明';
-    $_SESSION['role'] = 'S';
-}
+
 
 $title = "我的報名紀錄";
 include "header.php";
@@ -35,7 +30,7 @@ $result = mysqli_query($conn, $sql);
 
 <div class="container mt-4">
     <h2 class="mb-4">我的報名紀錄</h2>
-    
+
     <div class="alert alert-light border">
         使用者：<strong><?= htmlspecialchars($_SESSION['name']) ?></strong> (<?= htmlspecialchars($account) ?>)
     </div>
@@ -61,23 +56,23 @@ $result = mysqli_query($conn, $sql);
                         while ($row = mysqli_fetch_assoc($result)) {
                             // 格式化時間
                             $apply_time = date('Y-m-d H:i', strtotime($row['applied_at']));
-                    ?>
-                        <tr>
-                            <td class="text-muted small"><?= $apply_time ?></td>
-                            <td class="fw-bold"><?= htmlspecialchars($row['company']) ?></td>
-                            <td><?= htmlspecialchars($row['content']) ?></td>
-                            <td><?= htmlspecialchars($row['pdate']) ?></td>
-                            <td class="text-center">
-                                <!-- 取消報名按鈕 -->
-                                <!-- 傳遞的是報名紀錄 ID (app_id)，而非活動 ID -->
-                                <a href="cancel_application.php?id=<?= $row['app_id'] ?>" 
-                                   class="btn btn-outline-danger btn-sm"
-                                   onclick="return confirm('確定要取消「<?= htmlspecialchars($row['company']) ?>」的報名嗎？');">
-                                   取消報名
-                                </a>
-                            </td>
-                        </tr>
-                    <?php
+                            ?>
+                            <tr>
+                                <td class="text-muted small"><?= $apply_time ?></td>
+                                <td class="fw-bold"><?= htmlspecialchars($row['company']) ?></td>
+                                <td><?= htmlspecialchars($row['content']) ?></td>
+                                <td><?= htmlspecialchars($row['pdate']) ?></td>
+                                <td class="text-center">
+                                    <!-- 取消報名按鈕 -->
+                                    <!-- 傳遞的是報名紀錄 ID (app_id)，而非活動 ID -->
+                                    <a href="cancel_application.php?id=<?= $row['app_id'] ?>"
+                                        class="btn btn-outline-danger btn-sm"
+                                        onclick="return confirm('確定要取消「<?= htmlspecialchars($row['company']) ?>」的報名嗎？');">
+                                        取消報名
+                                    </a>
+                                </td>
+                            </tr>
+                            <?php
                         }
                     } else {
                         echo '<tr><td colspan="5" class="text-center py-4 text-muted">目前還沒有報名任何活動喔！ <a href="index.php">去逛逛</a></td></tr>';
@@ -87,13 +82,13 @@ $result = mysqli_query($conn, $sql);
             </table>
         </div>
     </div>
-    
+
     <div class="mt-3">
         <a href="index.php" class="btn btn-secondary">回首頁</a>
     </div>
 </div>
 
 <?php mysqli_close($conn); ?>
-<?php 
-include "footer.php"; 
+<?php
+include "footer.php";
 ?>

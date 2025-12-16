@@ -1,43 +1,64 @@
 <?php
 // header.php - FINAL VERSION
 // Feature: Navigation Bar + Avatar Display
+
 if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+  session_start();
 }
-require_once 'db.php'; 
+require_once 'db.php';
 
 $current_page = $_SERVER["REQUEST_URI"];
 
-function nav_active($file) {
-    $current = basename($_SERVER['PHP_SELF']);
-    return $current === $file ? ' active' : '';
+function nav_active($file)
+{
+  $current = basename($_SERVER['PHP_SELF']);
+  return $current === $file ? ' active' : '';
 }
 
-$avatar_html = ""; 
+$avatar_html = "";
 
 // Check Login Status
 if (isset($_SESSION["account"])) {
-    $login_url = "logout.php";
-    $login_text = "登出";
-    
-    // --- FETCH AVATAR ---
-    $acc = $_SESSION['account'];
-    $sql_av = "SELECT avatar FROM user WHERE account = '$acc'";
-    $res_av = mysqli_query($conn, $sql_av);
-    $row_av = mysqli_fetch_assoc($res_av);
-    
-    $img_src = !empty($row_av['avatar']) ? $row_av['avatar'] : "https://via.placeholder.com/30";
-    
-    $avatar_html = "<img src='$img_src' class='rounded-circle border' 
+  $login_url = "logout.php";
+  $login_text = "登出";
+
+  // --- FETCH AVATAR ---
+  // --- FETCH AVATAR (SECURE VERSION) ---
+  $acc = $_SESSION['account'];
+  $img_src = "https://via.placeholder.com/30"; // Default
+
+  // Use Prepared Statement
+  if ($stmt = $conn->prepare("SELECT avatar FROM user WHERE account = ?")) {
+    $stmt->bind_param("s", $acc);
+    $stmt->execute();
+    $res_av = $stmt->get_result();
+
+    if ($res_av && $row_av = $res_av->fetch_assoc()) {
+      if (!empty($row_av['avatar'])) {
+        $img_src = $row_av['avatar'];
+      }
+    }
+    $stmt->close();
+  }
+
+  // Remove error causing direct query
+  // $sql_av = "SELECT avatar FROM user WHERE account = '$acc'";
+  // $res_av = mysqli_query($conn, $sql_av);
+  // $row_av = mysqli_fetch_assoc($res_av);
+
+  $img_src = !empty($row_av['avatar']) ? $row_av['avatar'] : "https://via.placeholder.com/30";
+
+  $avatar_html = "<img src='$img_src' class='rounded-circle border' 
                          style='width: 30px; height: 30px; object-fit: cover; margin-right: 8px;'>";
-    
+
 } else {
-    $login_url = "login.php?redirect=" . urlencode($current_page);
-    $login_text = "登入";
+  $login_url = "login.php?redirect=" . urlencode($current_page);
+  $login_text = "登入";
 }
 ?>
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -45,6 +66,7 @@ if (isset($_SESSION["account"])) {
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 </head>
+
 <body class="d-flex flex-column min-vh-100 bg-light">
 
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -69,12 +91,12 @@ if (isset($_SESSION["account"])) {
           </li>
           <li class="nav-item mx-2"></li>
           <li class="nav-item d-flex align-items-center">
-             <?php if(isset($_SESSION["account"])): ?>
-                <a href="personal.php" title="更換頭像">
-                    <?= $avatar_html ?>
-                </a>
-             <?php endif; ?>
-             <a class="btn btn-outline-light btn-sm" href="<?= $login_url ?>"><?= $login_text ?></a>
+            <?php if (isset($_SESSION["account"])): ?>
+              <a href="personal.php" title="更換頭像">
+                <?= $avatar_html ?>
+              </a>
+            <?php endif; ?>
+            <a class="btn btn-outline-light btn-sm" href="<?= $login_url ?>"><?= $login_text ?></a>
           </li>
         </ul>
       </div>
