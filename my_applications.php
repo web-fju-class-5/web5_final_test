@@ -49,7 +49,7 @@ $result = mysqli_query($conn, $sql);
                 <thead class="table-light">
                     <tr>
                         <th scope="col">報名時間</th>
-                        <th scope="col">活動/職缺廠商</th>
+                        <th scope="col">主辦單位</th>
                         <th scope="col">內容</th>
                         <th scope="col">活動日期</th>
                         <th scope="col" class="text-center">操作</th>

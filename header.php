@@ -66,6 +66,7 @@ if (isset($_SESSION["account"])) {
           </li>
           <li class="nav-item">
             <a class="nav-link<?= nav_active('personal.php') ?>" href="personal.php">個人資料</a>
+<<<<<<< HEAD
           </li>
           <li class="nav-item mx-2"></li>
           <li class="nav-item d-flex align-items-center">

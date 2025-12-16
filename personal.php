@@ -11,6 +11,9 @@ if (empty($_SESSION['account'])) {
     exit;
 }
 
+// db.php provides $conn
+
+// 取得登入使用者資料
 $user = $_SESSION['account'];
 // Fetch user data
 $stmt = $conn->prepare("SELECT * FROM user WHERE account=?");

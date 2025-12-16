@@ -118,7 +118,7 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
     <!-- 管理員按鈕：新增職缺 (權限檢查) -->
     <?php if (!empty($_SESSION['role']) && (strtoupper(trim($_SESSION['role'])) === 'M' || strtoupper(trim($_SESSION['role'])) === 'T')): ?>
         <a href="job_insert.php" class="btn btn-primary position-absolute"
-            style="top: 5.5rem; right: 2rem; z-index: 10;">新增職缺</a>
+            style="top: 5.5rem; right: 2rem; z-index: 10;">新增活動</a>
     <?php endif; ?>
 
     <!-- 搜尋表單 -->
@@ -127,7 +127,7 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
         <div class="row g-3 mb-3">
             <div class="col-md-3">
                 <label class="form-label">關鍵字搜尋</label>
-                <input placeholder="廠商或內容" value="<?= htmlspecialchars($search_txt) ?>" type="text" name="searchtxt"
+                <input placeholder="主辦單位或內容" value="<?= htmlspecialchars($search_txt) ?>" type="text" name="searchtxt"
                     class="form-control">
             </div>
             <div class="col-md-2">
@@ -142,7 +142,7 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
                 <label class="form-label">排序方式</label>
                 <select name="order" class="form-select">
                     <option value="" <?= ($order == "") ? 'selected' : '' ?>>預設 (日期最新)</option>
-                    <option value="company" <?= ($order == "company") ? 'selected' : '' ?>>廠商</option>
+                    <option value="company" <?= ($order == "company") ? 'selected' : '' ?>>主辦單位</option>
                     <option value="content" <?= ($order == "content") ? 'selected' : '' ?>>內容</option>
                     <option value="pdate" <?= ($order == "pdate") ? 'selected' : '' ?>>日期</option>
                 </select>
@@ -188,8 +188,8 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
             <table class="table table-bordered table-striped table-hover mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>主辦單位/廠商</th>
-                        <th>活動內容</th>
+                        <th>主辦單位</th>
+                        <th>活動名稱</th>
                         <th>日期</th>
                         <th>功能</th>
                     </tr>
@@ -234,7 +234,73 @@ if ($order && in_array($order, ['company', 'content', 'pdate'])) {
     </div>
 </div>
 
-<?php mysqli_close($conn); ?>
+
+   <!-- 圖表區塊 -->
+<div class="mt-4" style="height: 400px;">
+    <h3>報名人數統計圖</h3>
+    <canvas id="myChart"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const ctx = document.getElementById('myChart');
+
+    // fetch 開始
+    fetch('chart_data.php')
+        .then(response => response.json()) // 處理 JSON
+        .then(json => {
+            // Chart 實例開始
+            new Chart(ctx, {
+                type: 'bar',
+                data: {   // data 區塊開始
+                    labels: json.labels,
+                    datasets: [{
+                        label: '# 報名人數',
+                        data: json.data,
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1,
+                        barThickness: 40,
+                        maxBarThickness: 50
+                    }]
+                }, // data 區塊結束
+                options: { // options 區塊開始
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '活動名稱',
+                                color: '#000',
+                                font: { size: 16, weight: 'bold' }
+                            },
+                            ticks: { autoSkip: false }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '報名人數',
+                                font: { size: 16, weight: 'bold' }
+                            },
+                            ticks: { precision: 0, stepSize: 1 }
+                        }
+                    }
+                } // options 區塊結束
+            }); // Chart 實例結束
+        }) // then(json) 結束
+        .catch(err => console.error('抓取報名統計資料失敗:', err)); // catch 結束
+}); // DOMContentLoaded 結束
+</script>
+<br>
+<br>
+<br>
+
+</div>
+
 <?php
-include "footer.php";
+mysqli_close($conn);
+include "footer.php";  
 ?>
