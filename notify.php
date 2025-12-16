@@ -141,7 +141,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $msg = "<div class='alert alert-success alert-dismissible fade show'>
                         <strong>發送成功！</strong><br> 
                         已發送 $count 則站內通知。<br>
-                        已嘗試寄送 $mail_count 封 Email (需設定 SMTP 才能實際寄出)。
+                        已嘗試寄送 $mail_count 封 Email。
                         <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
                     </div>";
         } else {
