@@ -106,29 +106,66 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 ?>
 
 <div class="container mt-4">
-    <h2>發送活動通知 (Email + 站內信)</h2>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2><span class="badge bg-secondary">管理後台</span> 發送站內通知</h2>
+        <a href="my_notifications.php" class="btn btn-outline-secondary">回訊息列表</a>
+    </div>
+
+    <p class="text-muted">
+        選擇特定活動，系統將自動發送訊息給所有該活動的報名者。
+    </p>
+
+    <!-- 顯示操作訊息 -->
     <?= $msg ?>
-    <form method="POST" action="notify.php" class="card p-4 shadow-sm border-info">
-        <div class="mb-3">
-            <label class="form-label fw-bold">選擇活動群組</label>
-            <select name="target_job_id" class="form-select" required>
-                <option value="">-- 請選擇 --</option>
-                <?php while ($row = mysqli_fetch_assoc($events_result)): ?>
-                    <option value="<?= $row['postid'] ?>">
-                        <?= htmlspecialchars($row['company'] . " - " . $row['content']) ?>
-                    </option>
-                <?php endwhile; ?>
-            </select>
+
+    <!-- 發送表單卡片 -->
+    <div class="card shadow-sm border-info">
+        <div class="card-header bg-info text-white fw-bold">
+            撰寫新通知
         </div>
-        <div class="mb-3">
-            <label class="form-label fw-bold">標題</label>
-            <input type="text" name="subject" class="form-control" required>
+        <div class="card-body">
+            <form method="POST" action="notify.php">
+
+                <!-- 下拉選單：選擇接收群組 -->
+                <div class="mb-3">
+                    <label for="target_job_id" class="form-label fw-bold">接收對象 (活動群組)</label>
+                    <select name="target_job_id" id="target_job_id" class="form-select" required>
+                        <option value="">-- 請選擇活動 --</option>
+                        <?php
+                        // 動態生成選項
+                        if ($events_result && mysqli_num_rows($events_result) > 0) {
+                            while ($row = mysqli_fetch_assoc($events_result)) {
+                                echo "<option value='" . $row['postid'] . "'>";
+                                echo "報名【" . htmlspecialchars($row['company']) . " - " . htmlspecialchars($row['content']) . "】的成員";
+                                echo "</option>";
+                            }
+                        } else {
+                            echo "<option value='' disabled>無活動可選</option>";
+                        }
+                        ?>
+                    </select>
+                </div>
+
+                <!-- 標題輸入框 -->
+                <div class="mb-3">
+                    <label for="subject" class="form-label fw-bold">通知標題</label>
+                    <input type="text" class="form-control" id="subject" name="subject" placeholder="例如：活動地點異動"
+                        required>
+                </div>
+
+                <!-- 內容輸入框 -->
+                <div class="mb-3">
+                    <label for="message" class="form-label fw-bold">通知內容</label>
+                    <textarea class="form-control" id="message" name="message" rows="6" placeholder="請輸入詳細內容..."
+                        required></textarea>
+                </div>
+
+                <!-- 送出按鈕 -->
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-info text-white btn-lg">確認發送通知</button>
+                </div>
+            </form>
         </div>
-        <div class="mb-3">
-            <label class="form-label fw-bold">內容</label>
-            <textarea name="message" class="form-control" rows="5" required></textarea>
-        </div>
-        <button type="submit" class="btn btn-info text-white">發送通知</button>
-    </form>
+    </div>
 </div>
 <?php include "footer.php"; ?>
